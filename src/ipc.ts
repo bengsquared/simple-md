@@ -27,6 +27,8 @@ export const backend = {
   statMtime: (path: string) => invoke<number | null>("stat_mtime", { path }),
   pathExists: (path: string) => invoke<boolean>("path_exists", { path }),
   indexStatus: () => invoke<IndexStatus>("index_status"),
+  /** Force a full re-walk of the roots (async; index-ready event follows). */
+  refreshIndex: () => invoke<void>("refresh_index"),
   /** Drains the queue of files macOS asked us to open. */
   takePendingOpen: () => invoke<string[]>("take_pending_open"),
 };

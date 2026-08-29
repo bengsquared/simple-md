@@ -51,6 +51,14 @@ async function refreshIndexStatus() {
     : `${status.count.toLocaleString()} files indexed`;
 }
 
+// The index is served from a disk cache between launches; click the count
+// to force a re-walk of the roots.
+indexStatusEl.title = "Click to reindex";
+indexStatusEl.addEventListener("click", () => {
+  indexStatusEl.textContent = "indexing…";
+  void backend.refreshIndex();
+});
+
 // macOS "open with" requests queue in the backend; the open-request event is
 // just a wake-up. Drain on event and once at startup (for requests that
 // arrived before this listener existed).

@@ -42,6 +42,47 @@ struct IndexStatus {
     indexing: bool,
 }
 
+/// On-disk snapshot of the index so relaunches search instantly instead of
+/// re-walking the roots. Invalid when the roots changed; stale (but still
+/// served) past REBUILD_TTL_SECS, which triggers a background rebuild.
+#[derive(Serialize, Deserialize)]
+struct IndexCache {
+    roots: Vec<String>,
+    built_at: u64,
+    files: Vec<String>,
+}
+
+const REBUILD_TTL_SECS: u64 = 300;
+
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+fn cache_path(app: &tauri::AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_data_dir()
+        .ok()
+        .map(|d| d.join("index-cache.json"))
+}
+
+fn load_cache(app: &tauri::AppHandle) -> Option<IndexCache> {
+    let raw = std::fs::read_to_string(cache_path(app)?).ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+fn save_cache(app: &tauri::AppHandle, cache: &IndexCache) {
+    let Some(path) = cache_path(app) else { return };
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(json) = serde_json::to_string(cache) {
+        let _ = std::fs::write(path, json);
+    }
+}
+
 fn expand_tilde(path: &str) -> PathBuf {
     if let Some(rest) = path.strip_prefix("~/") {
         if let Some(home) = dirs::home_dir() {
@@ -139,11 +180,36 @@ fn rebuild_index_async(app: tauri::AppHandle) {
     std::thread::spawn(move || {
         let index = build_index(&roots);
         let count = index.len();
+        save_cache(
+            &app,
+            &IndexCache {
+                roots,
+                built_at: now_secs(),
+                files: index.clone(),
+            },
+        );
         let state = app.state::<AppState>();
         *state.index.lock().unwrap() = index;
         *state.indexing.lock().unwrap() = false;
         let _ = app.emit("index-ready", count);
     });
+}
+
+/// Serve the cached index immediately; rebuild in the background only when
+/// there is no usable cache or it has gone stale.
+fn init_index(app: tauri::AppHandle) {
+    let roots = load_roots(&app);
+    let fresh = match load_cache(&app) {
+        Some(cache) if cache.roots == roots => {
+            let fresh = now_secs().saturating_sub(cache.built_at) < REBUILD_TTL_SECS;
+            *app.state::<AppState>().index.lock().unwrap() = cache.files;
+            fresh
+        }
+        _ => false,
+    };
+    if !fresh {
+        rebuild_index_async(app);
+    }
 }
 
 #[tauri::command]
@@ -274,7 +340,7 @@ pub fn run() {
             take_pending_open,
         ])
         .setup(|app| {
-            rebuild_index_async(app.handle().clone());
+            init_index(app.handle().clone());
             Ok(())
         })
         .build(tauri::generate_context!())

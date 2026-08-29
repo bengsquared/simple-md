@@ -262,6 +262,14 @@ body {
 }
 
 /* ---------- Status bar ---------- */
+#index-status {
+  cursor: pointer;
+}
+
+#index-status:hover {
+  color: var(--fg);
+}
+
 #statusbar {
   position: fixed;
   bottom: 0;
