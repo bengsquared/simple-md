@@ -1,0 +1,232 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #8a8a8a;
+  --border: #e6e2dc;
+  --accent: #0b6bcb;
+  --titlebar-h: 40px;
+  --statusbar-h: 26px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1e;
+    --fg: #e6e6e6;
+    --muted: #8a8a8a;
+    --border: #333;
+    --accent: #4a9eea;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  overflow: hidden;
+}
+
+/* ---------- Title bar ---------- */
+#titlebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--titlebar-h);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px 0 84px; /* clear the traffic lights */
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(12px);
+  z-index: 10;
+  user-select: none;
+  font-size: 13px;
+}
+
+#file-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#dirty-dot {
+  color: var(--accent);
+  font-size: 10px;
+}
+
+#file-path {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl; /* ellipsis on the left, keep the tail visible */
+  text-align: left;
+}
+
+/* ---------- Editor ---------- */
+#editor-host {
+  position: absolute;
+  inset: var(--titlebar-h) 0 var(--statusbar-h) 0;
+  overflow-y: auto;
+}
+
+#editor {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 48px 40vh;
+}
+
+#editor .milkdown {
+  --crepe-font-title: "New York", "Iowan Old Style", Georgia, serif;
+  --crepe-font-default: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  --crepe-font-code: "SF Mono", ui-monospace, Menlo, monospace;
+}
+
+#empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  gap: 4px;
+}
+
+#empty-state h1 {
+  font-weight: 600;
+  font-size: 22px;
+  color: var(--fg);
+  opacity: 0.5;
+}
+
+#empty-state kbd {
+  font-family: inherit;
+  background: var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 12px;
+}
+
+/* ---------- Status bar ---------- */
+#statusbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--statusbar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg);
+  z-index: 10;
+  user-select: none;
+}
+
+/* ---------- Quick-open palette ---------- */
+#palette-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+}
+
+#palette {
+  width: min(680px, 90vw);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+#palette-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--fg);
+  font-size: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-family: inherit;
+}
+
+#palette-results {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+#palette-results li {
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+#palette-results li.selected {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+#palette-results .r-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+#palette-results .r-dir {
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+#palette-results .r-empty {
+  padding: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ---------- Mermaid preview ---------- */
+.mermaid-preview {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  overflow-x: auto;
+}
+
+.mermaid-preview svg {
+  max-width: 100%;
+}
+
+.mermaid-error {
+  color: #c0392b;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  padding: 8px;
+}

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MD Machine</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+
+  <body>
+    <header id="titlebar" data-tauri-drag-region>
+      <span id="file-name" data-tauri-drag-region>No file open</span>
+      <span id="dirty-dot" hidden>●</span>
+      <span id="file-path" data-tauri-drag-region></span>
+    </header>
+
+    <main id="editor-host">
+      <div id="editor"></div>
+      <div id="empty-state">
+        <h1>MD Machine</h1>
+        <p><kbd>⌘P</kbd> to find a file — paste a path or fuzzy-type a name</p>
+      </div>
+    </main>
+
+    <footer id="statusbar">
+      <span id="index-status">indexing…</span>
+      <span id="save-status"></span>
+    </footer>
+
+    <div id="palette-overlay" hidden>
+      <div id="palette">
+        <input
+          id="palette-input"
+          type="text"
+          placeholder="Paste a path or fuzzy-search files…"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <ul id="palette-results"></ul>
+      </div>
+    </div>
+  </body>
+</html>
