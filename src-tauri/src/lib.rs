@@ -36,6 +36,12 @@ struct SearchResult {
     score: u32,
 }
 
+#[derive(Serialize)]
+struct IndexStatus {
+    count: usize,
+    indexing: bool,
+}
+
 fn expand_tilde(path: &str) -> PathBuf {
     if let Some(rest) = path.strip_prefix("~/") {
         if let Some(home) = dirs::home_dir() {
@@ -189,11 +195,11 @@ fn refresh_index(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
-fn index_status(state: State<AppState>) -> (usize, bool) {
-    (
-        state.index.lock().unwrap().len(),
-        *state.indexing.lock().unwrap(),
-    )
+fn index_status(state: State<AppState>) -> IndexStatus {
+    IndexStatus {
+        count: state.index.lock().unwrap().len(),
+        indexing: *state.indexing.lock().unwrap(),
+    }
 }
 
 #[tauri::command]
@@ -284,9 +290,12 @@ pub fn run() {
                 if paths.is_empty() {
                     return;
                 }
+                // The queue is the single source of open requests; the event
+                // is only a wake-up. The frontend drains the queue both at
+                // startup (event fired before it was listening) and on event.
                 let state = app.state::<AppState>();
-                state.pending_open.lock().unwrap().extend(paths.clone());
-                let _ = app.emit("open-files", paths);
+                state.pending_open.lock().unwrap().extend(paths);
+                let _ = app.emit("open-request", ());
                 if let Some(win) = app.get_webview_window("main") {
                     let _ = win.set_focus();
                 }

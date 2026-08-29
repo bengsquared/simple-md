@@ -92,8 +92,13 @@ body {
   cursor: pointer;
 }
 
-#titlebar-actions button:hover {
+#titlebar-actions button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
+
+#titlebar-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 #btn-reload {
