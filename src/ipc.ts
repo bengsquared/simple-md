@@ -16,13 +16,22 @@ export interface IndexStatus {
   indexing: boolean;
 }
 
+/** Did this backend error signal a save conflict (vs. an IO failure)? */
+export function isConflict(err: unknown): boolean {
+  return String(err).startsWith("conflict");
+}
+
 export const backend = {
   searchFiles: (query: string) =>
     invoke<SearchResult[]>("search_files", { query }),
   readFile: (path: string) => invoke<FileContent>("read_file", { path }),
-  /** Returns the file's new mtime. */
-  writeFile: (path: string, content: string) =>
-    invoke<number>("write_file", { path, content }),
+  /**
+   * Atomic save returning the file's new mtime. When expectedMtime is
+   * given, the backend refuses with a conflict error (see isConflict) if
+   * the file on disk changed since; omit it to force-overwrite.
+   */
+  writeFile: (path: string, content: string, expectedMtime?: number) =>
+    invoke<number>("write_file", { path, content, expectedMtime }),
   /** null when the path is not a readable file. */
   statMtime: (path: string) => invoke<number | null>("stat_mtime", { path }),
   pathExists: (path: string) => invoke<boolean>("path_exists", { path }),

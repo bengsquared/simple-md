@@ -2,21 +2,42 @@ use ignore::WalkBuilder;
 use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config, Matcher, Utf32Str};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
-use std::time::UNIX_EPOCH;
+use std::sync::{Mutex, MutexGuard};
+use std::time::{Duration, Instant, UNIX_EPOCH};
 use tauri::{Emitter, Manager, State};
 
 const INDEXED_EXTS: &[&str] = &[
     "md", "markdown", "mdx", "txt", "text", "rst", "adoc", "org",
 ];
 
+/// How long the on-disk index cache is trusted before a background rebuild.
+const REBUILD_TTL_SECS: u64 = 300;
+
+/// How long the watcher coalesces filesystem events before touching the
+/// index, so a git checkout storm becomes one batch instead of thousands
+/// of per-event index scans.
+const WATCH_BATCH: Duration = Duration::from_millis(200);
+
 #[derive(Default)]
 struct AppState {
     // Full paths of indexed files, sorted most-recently-modified first.
     index: Mutex<Vec<String>>,
     indexing: Mutex<bool>,
+    // Watcher changes made while a rebuild walk is running; replayed on top
+    // of the fresh index before it is published, so the rebuild cannot
+    // clobber live updates. (String path -> still exists?)
+    journal: Mutex<Vec<(String, bool)>>,
     pending_open: Mutex<Vec<String>>,
+    // Held so the filesystem watcher lives as long as the app.
+    watcher: Mutex<Option<notify::RecommendedWatcher>>,
+}
+
+/// Lock that recovers from poisoning: a panic in one thread must not wedge
+/// every future access to this state for the life of the process.
+fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -52,35 +73,11 @@ struct IndexCache {
     files: Vec<String>,
 }
 
-const REBUILD_TTL_SECS: u64 = 300;
-
 fn now_secs() -> u64 {
     std::time::SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0)
-}
-
-fn cache_path(app: &tauri::AppHandle) -> Option<PathBuf> {
-    app.path()
-        .app_data_dir()
-        .ok()
-        .map(|d| d.join("index-cache.json"))
-}
-
-fn load_cache(app: &tauri::AppHandle) -> Option<IndexCache> {
-    let raw = std::fs::read_to_string(cache_path(app)?).ok()?;
-    serde_json::from_str(&raw).ok()
-}
-
-fn save_cache(app: &tauri::AppHandle, cache: &IndexCache) {
-    let Some(path) = cache_path(app) else { return };
-    if let Some(parent) = path.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    if let Ok(json) = serde_json::to_string(cache) {
-        let _ = std::fs::write(path, json);
-    }
 }
 
 fn expand_tilde(path: &str) -> PathBuf {
@@ -94,6 +91,13 @@ fn expand_tilde(path: &str) -> PathBuf {
 
 fn config_path(app: &tauri::AppHandle) -> Option<PathBuf> {
     app.path().app_config_dir().ok().map(|d| d.join("roots.json"))
+}
+
+fn cache_path(app: &tauri::AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_data_dir()
+        .ok()
+        .map(|d| d.join("index-cache.json"))
 }
 
 fn load_roots(app: &tauri::AppHandle) -> Vec<String> {
@@ -122,6 +126,21 @@ fn default_roots() -> Vec<String> {
     roots
 }
 
+fn load_cache(app: &tauri::AppHandle) -> Option<IndexCache> {
+    let raw = std::fs::read_to_string(cache_path(app)?).ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+fn save_cache(app: &tauri::AppHandle, cache: &IndexCache) {
+    let Some(path) = cache_path(app) else { return };
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(json) = serde_json::to_string(cache) {
+        let _ = std::fs::write(path, json);
+    }
+}
+
 fn mtime_of(path: &Path) -> u64 {
     std::fs::metadata(path)
         .and_then(|m| m.modified())
@@ -130,6 +149,8 @@ fn mtime_of(path: &Path) -> u64 {
         .map(|d| d.as_secs())
         .unwrap_or(0)
 }
+
+// ---------- Index building ----------
 
 fn build_index(roots: &[String]) -> Vec<String> {
     let mut entries: Vec<(u64, String)> = Vec::new();
@@ -162,24 +183,59 @@ fn build_index(roots: &[String]) -> Vec<String> {
             entries.push((mtime_of(path), path.to_string_lossy().to_string()));
         }
     }
-    entries.sort_by(|a, b| b.0.cmp(&a.0));
+    // Dedup (overlapping/nested roots index the same file twice) needs
+    // path-adjacency, so sort by path first, then by recency for the final
+    // most-recently-modified-first order.
+    entries.sort_by(|a, b| a.1.cmp(&b.1));
     entries.dedup_by(|a, b| a.1 == b.1);
+    entries.sort_by(|a, b| b.0.cmp(&a.0));
     entries.into_iter().map(|(_, p)| p).collect()
 }
 
+/// Remove `touched` paths from `index` and re-insert the still-existing
+/// ones at the front (most recent). O(index + touched).
+fn apply_touched(index: &mut Vec<String>, touched: &HashMap<String, bool>) {
+    let old = std::mem::take(index);
+    let mut fresh: Vec<String> = touched
+        .iter()
+        .filter(|(_, exists)| **exists)
+        .map(|(p, _)| p.clone())
+        .collect();
+    fresh.extend(old.into_iter().filter(|p| !touched.contains_key(p)));
+    *index = fresh;
+}
+
+/// Clears the indexing flag even if the rebuild thread panics, so a failed
+/// rebuild can never permanently block future rebuilds.
+struct IndexingGuard(tauri::AppHandle);
+
+impl Drop for IndexingGuard {
+    fn drop(&mut self) {
+        *lock(&self.0.state::<AppState>().indexing) = false;
+    }
+}
+
 fn rebuild_index_async(app: tauri::AppHandle) {
-    let state = app.state::<AppState>();
     {
-        let mut indexing = state.indexing.lock().unwrap();
+        let state = app.state::<AppState>();
+        let mut indexing = lock(&state.indexing);
         if *indexing {
             return;
         }
         *indexing = true;
+        lock(&state.journal).clear();
     }
     let roots = load_roots(&app);
     std::thread::spawn(move || {
-        let index = build_index(&roots);
-        let count = index.len();
+        let _guard = IndexingGuard(app.clone());
+        let mut index = build_index(&roots);
+        let state = app.state::<AppState>();
+        // Replay watcher changes that happened during the walk.
+        let journal = std::mem::take(&mut *lock(&state.journal));
+        if !journal.is_empty() {
+            let touched: HashMap<String, bool> = journal.into_iter().collect();
+            apply_touched(&mut index, &touched);
+        }
         save_cache(
             &app,
             &IndexCache {
@@ -188,10 +244,94 @@ fn rebuild_index_async(app: tauri::AppHandle) {
                 files: index.clone(),
             },
         );
-        let state = app.state::<AppState>();
-        *state.index.lock().unwrap() = index;
-        *state.indexing.lock().unwrap() = false;
+        let count = index.len();
+        *lock(&state.index) = index;
         let _ = app.emit("index-ready", count);
+    });
+}
+
+// ---------- Filesystem watcher ----------
+
+/// Should this path be in the index? Mirrors the walker's filters closely
+/// enough for live updates: right extension, no hidden or dependency dirs.
+fn is_indexable(path: &Path) -> bool {
+    let ext_ok = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| INDEXED_EXTS.contains(&e.to_ascii_lowercase().as_str()))
+        .unwrap_or(false);
+    ext_ok
+        && !path.components().any(|c| {
+            let name = c.as_os_str().to_string_lossy();
+            (name.starts_with('.') && name.len() > 1) || name == "node_modules" || name == "target"
+        })
+}
+
+/// Keep the in-memory index current while the app runs. Events are batched
+/// for WATCH_BATCH and folded to a final per-path state before the index is
+/// touched once per batch.
+fn start_watcher(app: tauri::AppHandle, roots: &[String]) {
+    use notify::{RecursiveMode, Watcher};
+    let (tx, rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
+    let mut watcher = match notify::recommended_watcher(tx) {
+        Ok(w) => w,
+        Err(err) => {
+            eprintln!("watcher init failed: {err}");
+            let _ = app.emit("index-warning", "live updates unavailable");
+            return;
+        }
+    };
+    for root in roots {
+        if let Err(err) = watcher.watch(&expand_tilde(root), RecursiveMode::Recursive) {
+            eprintln!("cannot watch {root}: {err}");
+            let _ = app.emit("index-warning", format!("not watching {root}"));
+        }
+    }
+    *lock(&app.state::<AppState>().watcher) = Some(watcher);
+
+    std::thread::spawn(move || {
+        loop {
+            let first = match rx.recv() {
+                Ok(ev) => ev,
+                Err(_) => break, // watcher dropped (replaced or app exit)
+            };
+            let mut batch: Vec<notify::Event> = first.into_iter().collect();
+            let deadline = Instant::now() + WATCH_BATCH;
+            loop {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                if remaining.is_zero() {
+                    break;
+                }
+                match rx.recv_timeout(remaining) {
+                    Ok(Ok(ev)) => batch.push(ev),
+                    Ok(Err(_)) => {}
+                    Err(_) => break,
+                }
+            }
+
+            let mut touched: HashMap<String, bool> = HashMap::new();
+            for event in &batch {
+                for path in &event.paths {
+                    if is_indexable(path) {
+                        touched.insert(path.to_string_lossy().to_string(), path.is_file());
+                    }
+                }
+            }
+            if touched.is_empty() {
+                continue;
+            }
+
+            let state = app.state::<AppState>();
+            if *lock(&state.indexing) {
+                lock(&state.journal).extend(touched.iter().map(|(k, v)| (k.clone(), *v)));
+            }
+            let count = {
+                let mut index = lock(&state.index);
+                apply_touched(&mut index, &touched);
+                index.len()
+            };
+            let _ = app.emit("index-ready", count);
+        }
     });
 }
 
@@ -202,19 +342,42 @@ fn init_index(app: tauri::AppHandle) {
     let fresh = match load_cache(&app) {
         Some(cache) if cache.roots == roots => {
             let fresh = now_secs().saturating_sub(cache.built_at) < REBUILD_TTL_SECS;
-            *app.state::<AppState>().index.lock().unwrap() = cache.files;
+            *lock(&app.state::<AppState>().index) = cache.files;
             fresh
         }
         _ => false,
     };
     if !fresh {
-        rebuild_index_async(app);
+        rebuild_index_async(app.clone());
     }
+    start_watcher(app, &roots);
 }
+
+/// Persist the live index at quit so the next launch starts warm.
+fn save_cache_on_exit(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+    if *lock(&state.indexing) {
+        return; // a rebuild is mid-flight; don't snapshot a partial index
+    }
+    let files = lock(&state.index).clone();
+    if files.is_empty() {
+        return;
+    }
+    save_cache(
+        app,
+        &IndexCache {
+            roots: load_roots(app),
+            built_at: now_secs(),
+            files,
+        },
+    );
+}
+
+// ---------- Commands ----------
 
 #[tauri::command]
 fn search_files(query: String, state: State<AppState>) -> Vec<SearchResult> {
-    let index = state.index.lock().unwrap();
+    let index = lock(&state.index);
     let trimmed = query.trim();
     if trimmed.is_empty() {
         // Empty query: most recently modified files.
@@ -263,8 +426,8 @@ fn refresh_index(app: tauri::AppHandle) {
 #[tauri::command]
 fn index_status(state: State<AppState>) -> IndexStatus {
     IndexStatus {
-        count: state.index.lock().unwrap().len(),
-        indexing: *state.indexing.lock().unwrap(),
+        count: lock(&state.index).len(),
+        indexing: *lock(&state.indexing),
     }
 }
 
@@ -282,7 +445,8 @@ fn set_roots(app: tauri::AppHandle, roots: Vec<String>) -> Result<(), String> {
     let cfg = RootsConfig { roots };
     std::fs::write(&path, serde_json::to_string_pretty(&cfg).unwrap())
         .map_err(|e| e.to_string())?;
-    rebuild_index_async(app);
+    rebuild_index_async(app.clone());
+    start_watcher(app, &cfg.roots); // replaces (and drops) the old watcher
     Ok(())
 }
 
@@ -296,10 +460,38 @@ fn read_file(path: String) -> Result<FileContent, String> {
     })
 }
 
+/// Error prefix the frontend matches on to distinguish a conflict from an
+/// IO failure.
+const CONFLICT: &str = "conflict";
+
+/// Atomic save with server-side conflict detection: when `expected_mtime`
+/// is given and the file on disk no longer matches it, nothing is written
+/// and a `conflict` error is returned. Pass no expected mtime to force.
 #[tauri::command]
-fn write_file(path: String, content: String) -> Result<u64, String> {
+fn write_file(path: String, content: String, expected_mtime: Option<u64>) -> Result<u64, String> {
     let path = expand_tilde(&path);
-    std::fs::write(&path, content).map_err(|e| e.to_string())?;
+    if let Some(expected) = expected_mtime {
+        if path.exists() && mtime_of(&path) != expected {
+            return Err(format!("{CONFLICT}: file changed on disk"));
+        }
+    }
+    // Atomic save: write a sibling temp file, then rename over the target,
+    // so a crash mid-write can never truncate the document.
+    let dir = path.parent().ok_or("path has no parent directory")?;
+    let mut tmp = dir.join(format!(
+        ".{}.mdmachine-tmp",
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .ok_or("path has no file name")?
+    ));
+    if tmp.exists() {
+        tmp = dir.join(format!(".{}.mdmachine-tmp2", now_secs()));
+    }
+    std::fs::write(&tmp, content).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, &path).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        e.to_string()
+    })?;
     Ok(mtime_of(&path))
 }
 
@@ -320,7 +512,7 @@ fn path_exists(path: String) -> bool {
 
 #[tauri::command]
 fn take_pending_open(state: State<AppState>) -> Vec<String> {
-    std::mem::take(&mut *state.pending_open.lock().unwrap())
+    std::mem::take(&mut *lock(&state.pending_open))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -346,6 +538,9 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                save_cache_on_exit(app);
+            }
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Opened { ref urls } = event {
                 let paths: Vec<String> = urls
@@ -360,7 +555,7 @@ pub fn run() {
                 // is only a wake-up. The frontend drains the queue both at
                 // startup (event fired before it was listening) and on event.
                 let state = app.state::<AppState>();
-                state.pending_open.lock().unwrap().extend(paths);
+                lock(&state.pending_open).extend(paths);
                 let _ = app.emit("open-request", ());
                 if let Some(win) = app.get_webview_window("main") {
                     let _ = win.set_focus();

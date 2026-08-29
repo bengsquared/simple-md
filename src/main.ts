@@ -10,7 +10,7 @@ import "./styles.css";
 import { backend } from "./ipc";
 import { $ } from "./dom";
 import { openFile, saveFile, reloadFromDisk, syncWithDisk } from "./document";
-import { openPalette } from "./palette";
+import { openPalette, isPaletteOpen } from "./palette";
 import { initAppearancePanel } from "./prefs";
 
 // Load the editor theme matching the system appearance so the editor and
@@ -29,6 +29,7 @@ for (const [href, media] of [
 document.addEventListener("keydown", (e) => {
   const mod = e.metaKey || e.ctrlKey;
   if (!mod) return;
+  if (isPaletteOpen()) return; // the palette owns the keyboard while open
   const key = e.key.toLowerCase();
   if (key === "p" || key === "o") {
     e.preventDefault();

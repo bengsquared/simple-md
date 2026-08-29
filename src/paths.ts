@@ -13,7 +13,9 @@ export function middleTruncate(path: string, max: number): string {
     if (next.length + 2 > max) break;
     tail = next;
   }
-  return (parts[0] || "/") + "/…/" + tail;
+  // For absolute paths parts[0] is "" (before the leading slash), which
+  // joins to "/…/tail"; for tildified paths it is "~".
+  return parts[0] + "/…/" + tail;
 }
 
 export function fileName(path: string): string {
@@ -21,5 +23,6 @@ export function fileName(path: string): string {
 }
 
 export function dirName(path: string): string {
-  return path.slice(0, path.lastIndexOf("/"));
+  const i = path.lastIndexOf("/");
+  return i === -1 ? "" : path.slice(0, i);
 }

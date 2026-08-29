@@ -4,7 +4,7 @@
 // reloadFromDisk, syncWithDisk - the mtime/baseline bookkeeping stays here.
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Crepe } from "@milkdown/crepe";
-import { backend } from "./ipc";
+import { backend, isConflict } from "./ipc";
 import { $ } from "./dom";
 import { tildify, middleTruncate, fileName } from "./paths";
 import { renderMermaidPreview } from "./mermaid-preview";
@@ -74,64 +74,105 @@ async function mountEditor(markdown: string) {
   emptyStateEl.hidden = true;
 }
 
-export async function openFile(path: string) {
+async function doOpenFile(path: string) {
+  let file;
   try {
-    const file = await backend.readFile(path);
-    currentPath = path;
-    loadedMtime = file.mtime;
-    await mountEditor(file.content);
-    setDirty(false);
-    hideConflict();
-    reloadBtn.disabled = false;
-    const name = fileName(path);
-    fileNameEl.textContent = name;
-    filePathEl.textContent = middleTruncate(tildify(path), 90);
-    void getCurrentWindow().setTitle(name);
+    file = await backend.readFile(path);
   } catch (err) {
+    // Read failed before anything was torn down; the current doc is intact.
     flashStatus(`open failed: ${err}`);
+    return;
   }
+  try {
+    await mountEditor(file.content);
+  } catch (err) {
+    // The old editor is already destroyed; fall back to the empty state
+    // rather than leaving state pointing at a doc that never mounted.
+    crepe = null;
+    currentPath = null;
+    editorEl.innerHTML = "";
+    emptyStateEl.hidden = false;
+    fileNameEl.textContent = "No file open";
+    filePathEl.textContent = "";
+    reloadBtn.disabled = true;
+    setDirty(false);
+    flashStatus(`open failed: ${err}`);
+    return;
+  }
+  currentPath = path;
+  loadedMtime = file.mtime;
+  setDirty(false);
+  hideConflict();
+  reloadBtn.disabled = false;
+  const name = fileName(path);
+  fileNameEl.textContent = name;
+  filePathEl.textContent = middleTruncate(tildify(path), 90);
+  void getCurrentWindow().setTitle(name);
 }
 
-export async function saveFile(force = false) {
+async function doSaveFile(force: boolean) {
   if (!crepe || !currentPath) return;
-  if (!force) {
-    // Refuse to silently clobber a file another agent rewrote after we
-    // loaded it; surface the conflict bar instead.
-    const disk = await backend.statMtime(currentPath);
-    if (disk !== null && disk !== loadedMtime) {
-      showConflict("The file changed on disk since you loaded it.");
-      return;
-    }
-  }
   try {
     const markdown = crepe.getMarkdown();
-    loadedMtime = await backend.writeFile(currentPath, markdown);
+    // The backend compares mtimes and writes atomically in one call, so an
+    // agent rewriting the file between check and write cannot be clobbered.
+    loadedMtime = await backend.writeFile(
+      currentPath,
+      markdown,
+      force ? undefined : loadedMtime
+    );
     baselineMarkdown = markdown;
     setDirty(false);
     hideConflict();
     flashStatus("saved");
   } catch (err) {
-    flashStatus(`save failed: ${err}`);
+    if (isConflict(err)) {
+      showConflict("The file changed on disk since you loaded it.");
+    } else {
+      flashStatus(`save failed: ${err}`);
+    }
   }
-}
-
-export function reloadFromDisk() {
-  if (currentPath) void openFile(currentPath);
 }
 
 // When the window regains focus and the file changed underneath us (the
 // AI-rewrote-the-doc case): clean editor reloads silently; unsaved local
 // edits raise the conflict bar so you choose.
-export async function syncWithDisk() {
+async function doSyncWithDisk() {
   if (!currentPath) return;
   const mtime = await backend.statMtime(currentPath);
   if (mtime === null || mtime === loadedMtime) return;
   if (dirty) {
     showConflict("The file changed on disk while you have unsaved edits.");
   } else {
-    await openFile(currentPath);
+    await doOpenFile(currentPath);
     flashStatus("reloaded from disk");
   }
+}
+
+// All document operations are serialized through one chain so a palette
+// pick, a macOS open request, a save, and a focus-triggered reload can
+// never interleave (mountEditor is not reentrant, and a focus event landing
+// mid-save must not read half-updated mtime/dirty state).
+let chain: Promise<unknown> = Promise.resolve();
+
+function serialized<A extends unknown[]>(
+  fn: (...args: A) => Promise<void>
+): (...args: A) => Promise<void> {
+  return (...args: A) => {
+    const next = chain.then(() => fn(...args));
+    chain = next.catch(() => {});
+    return next;
+  };
+}
+
+export const openFile = serialized(doOpenFile);
+export const saveFile = serialized((force: boolean = false) =>
+  doSaveFile(force)
+);
+export const syncWithDisk = serialized(doSyncWithDisk);
+
+export function reloadFromDisk() {
+  if (currentPath) void openFile(currentPath);
 }
 
 saveBtn.disabled = true;

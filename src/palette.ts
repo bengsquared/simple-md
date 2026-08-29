@@ -15,6 +15,10 @@ let results: SearchResult[] = [];
 let selected = 0;
 let searchToken = 0;
 
+export function isPaletteOpen(): boolean {
+  return !overlayEl.hidden;
+}
+
 export function openPalette() {
   overlayEl.hidden = false;
   inputEl.value = "";
