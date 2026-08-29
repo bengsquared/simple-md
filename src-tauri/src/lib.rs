@@ -1,6 +1,6 @@
 use ignore::WalkBuilder;
 use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
-use nucleo_matcher::{Config, Matcher};
+use nucleo_matcher::{Config, Matcher, Utf32Str};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -157,16 +157,30 @@ fn search_files(query: String, state: State<AppState>) -> Vec<SearchResult> {
     }
     let mut matcher = Matcher::new(Config::DEFAULT.match_paths());
     let pattern = Pattern::parse(trimmed, CaseMatching::Ignore, Normalization::Smart);
-    let mut results: Vec<SearchResult> = pattern
-        .match_list(index.iter(), &mut matcher)
+    let mut path_buf = Vec::new();
+    let mut name_buf = Vec::new();
+    // Score the full path, then heavily boost matches that also hit the
+    // filename itself so "test" ranks test-doc.md above foo/tests/bar.txt.
+    let mut scored: Vec<(u32, &String)> = index
+        .iter()
+        .filter_map(|p| {
+            let score = pattern.score(Utf32Str::new(p, &mut path_buf), &mut matcher)?;
+            let name = p.rsplit('/').next().unwrap_or(p);
+            let name_bonus = pattern
+                .score(Utf32Str::new(name, &mut name_buf), &mut matcher)
+                .unwrap_or(0);
+            Some((score + name_bonus * 2, p))
+        })
+        .collect();
+    scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+    scored
         .into_iter()
-        .map(|(p, score)| SearchResult {
+        .take(80)
+        .map(|(score, p)| SearchResult {
             path: p.clone(),
             score,
         })
-        .collect();
-    results.truncate(80);
-    results
+        .collect()
 }
 
 #[tauri::command]

@@ -12,7 +12,64 @@
       <span id="file-name" data-tauri-drag-region>No file open</span>
       <span id="dirty-dot" hidden>●</span>
       <span id="file-path" data-tauri-drag-region></span>
+      <div id="titlebar-actions">
+        <button id="btn-reload" title="Reload from disk (⌘R)">↻</button>
+        <button id="btn-save" title="Save (⌘S)">Save</button>
+        <button id="btn-appearance" title="Appearance">Aa</button>
+      </div>
     </header>
+
+    <div id="conflict-bar" hidden>
+      <span id="conflict-msg"></span>
+      <span class="conflict-actions">
+        <button id="conflict-reload">Reload from disk</button>
+        <button id="conflict-overwrite">Overwrite with my version</button>
+        <button id="conflict-dismiss">Dismiss</button>
+      </span>
+    </div>
+
+    <div id="appearance-panel" hidden>
+      <div class="ap-row">
+        <label>Width</label>
+        <div class="ap-seg" data-pref="width">
+          <button data-v="narrow">Narrow</button>
+          <button data-v="medium">Medium</button>
+          <button data-v="wide">Wide</button>
+          <button data-v="full">Full</button>
+        </div>
+      </div>
+      <div class="ap-row">
+        <label>Body font</label>
+        <div class="ap-seg" data-pref="font">
+          <button data-v="sans">Sans</button>
+          <button data-v="serif">Serif</button>
+          <button data-v="mono">Mono</button>
+        </div>
+      </div>
+      <div class="ap-row">
+        <label>Headings</label>
+        <div class="ap-seg" data-pref="headingFont">
+          <button data-v="serif">Serif</button>
+          <button data-v="sans">Sans</button>
+        </div>
+      </div>
+      <div class="ap-row">
+        <label>Titles</label>
+        <div class="ap-seg" data-pref="titles">
+          <button data-v="left">Left</button>
+          <button data-v="center">Centered</button>
+        </div>
+      </div>
+      <div class="ap-row">
+        <label>Zoom</label>
+        <div class="ap-seg" data-pref="zoom">
+          <button data-v="0.9">90%</button>
+          <button data-v="1">100%</button>
+          <button data-v="1.1">110%</button>
+          <button data-v="1.25">125%</button>
+        </div>
+      </div>
+    </div>
 
     <main id="editor-host">
       <div id="editor"></div>

@@ -5,8 +5,22 @@ import { Crepe } from "@milkdown/crepe";
 import mermaid from "mermaid";
 
 import "@milkdown/crepe/theme/common/style.css";
-import "@milkdown/crepe/theme/frame.css";
+import frameLight from "@milkdown/crepe/theme/frame.css?url";
+import frameDark from "@milkdown/crepe/theme/frame-dark.css?url";
 import "./styles.css";
+
+// Load the editor theme matching the system appearance so the editor and
+// the chrome (palette, bars) never disagree on light vs dark.
+for (const [href, media] of [
+  [frameLight, "(prefers-color-scheme: light)"],
+  [frameDark, "(prefers-color-scheme: dark)"],
+] as const) {
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  link.media = media;
+  document.head.appendChild(link);
+}
 
 interface FileContent {
   content: string;
@@ -32,6 +46,24 @@ const overlayEl = $("palette-overlay");
 const inputEl = $<HTMLInputElement>("palette-input");
 const resultsEl = $<HTMLUListElement>("palette-results");
 
+/** /Users/<name>/foo -> ~/foo */
+function tildify(path: string): string {
+  return path.replace(/^\/Users\/[^/]+/, "~");
+}
+
+/** Keep the informative tail of a path, truncating the middle. */
+function middleTruncate(path: string, max: number): string {
+  if (path.length <= max) return path;
+  const parts = path.split("/");
+  let tail = "";
+  for (let i = parts.length - 1; i > 0; i--) {
+    const next = parts[i] + (tail ? "/" + tail : "");
+    if (next.length + 2 > max) break;
+    tail = next;
+  }
+  return (parts[0] || "/") + "/…/" + tail;
+}
+
 const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
 mermaid.initialize({
   startOnLoad: false,
@@ -42,8 +74,84 @@ mermaid.initialize({
 let crepe: Crepe | null = null;
 let currentPath: string | null = null;
 let loadedMtime = 0;
+// Serialized form of the doc as loaded/saved; edits compare against this so
+// undoing back to the original clears the dirty state.
+let baselineMarkdown = "";
 let dirty = false;
 let mermaidSeq = 0;
+
+// ---------- Appearance preferences ----------
+
+interface Prefs {
+  width: "narrow" | "medium" | "wide" | "full";
+  font: "sans" | "serif" | "mono";
+  headingFont: "sans" | "serif";
+  titles: "left" | "center";
+  zoom: string;
+}
+
+const DEFAULT_PREFS: Prefs = {
+  width: "medium",
+  font: "sans",
+  headingFont: "serif",
+  titles: "left",
+  zoom: "1",
+};
+
+const WIDTHS: Record<Prefs["width"], string> = {
+  narrow: "680px",
+  medium: "860px",
+  wide: "1080px",
+  full: "100%",
+};
+
+function loadPrefs(): Prefs {
+  try {
+    return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem("prefs") ?? "{}") };
+  } catch {
+    return { ...DEFAULT_PREFS };
+  }
+}
+
+let prefs = loadPrefs();
+
+function applyPrefs() {
+  const root = document.documentElement.style;
+  root.setProperty("--content-width", WIDTHS[prefs.width] ?? WIDTHS.medium);
+  root.setProperty("--editor-zoom", prefs.zoom);
+  const fontVar = (f: string) =>
+    f === "serif" ? "var(--font-serif)" : f === "mono" ? "var(--font-mono)" : "var(--font-sans)";
+  root.setProperty("--editor-body-font", fontVar(prefs.font));
+  root.setProperty("--editor-heading-font", fontVar(prefs.headingFont));
+  editorEl.classList.toggle("centered-titles", prefs.titles === "center");
+  // Reflect active state in the panel.
+  document.querySelectorAll<HTMLElement>(".ap-seg").forEach((seg) => {
+    const key = seg.dataset.pref as keyof Prefs;
+    seg.querySelectorAll<HTMLButtonElement>("button").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.v === String(prefs[key]));
+    });
+  });
+}
+
+function initAppearancePanel() {
+  const panel = $("appearance-panel");
+  $("btn-appearance").addEventListener("click", (e) => {
+    e.stopPropagation();
+    panel.hidden = !panel.hidden;
+  });
+  document.addEventListener("mousedown", (e) => {
+    if (!panel.hidden && !panel.contains(e.target as Node)) panel.hidden = true;
+  });
+  panel.querySelectorAll<HTMLButtonElement>(".ap-seg button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = (btn.parentElement as HTMLElement).dataset.pref as keyof Prefs;
+      (prefs as unknown as Record<string, string>)[key] = btn.dataset.v!;
+      localStorage.setItem("prefs", JSON.stringify(prefs));
+      applyPrefs();
+    });
+  });
+  applyPrefs();
+}
 
 // ---------- Mermaid preview inside Crepe code blocks ----------
 
@@ -91,9 +199,10 @@ async function mountEditor(markdown: string) {
     },
   });
   crepe.on((listener) => {
-    listener.markdownUpdated(() => setDirty(true));
+    listener.markdownUpdated((_ctx, md) => setDirty(md !== baselineMarkdown));
   });
   await crepe.create();
+  baselineMarkdown = crepe.getMarkdown();
   emptyStateEl.hidden = true;
 }
 
@@ -116,38 +225,75 @@ async function openFile(path: string) {
     loadedMtime = file.mtime;
     await mountEditor(file.content);
     setDirty(false);
+    hideConflict();
     const name = path.split("/").pop() ?? path;
     fileNameEl.textContent = name;
-    filePathEl.textContent = path;
+    filePathEl.textContent = middleTruncate(tildify(path), 90);
     getCurrentWindow().setTitle(name);
   } catch (err) {
     flashSaveStatus(`open failed: ${err}`);
   }
 }
 
-async function saveFile() {
+async function saveFile(force = false) {
   if (!crepe || !currentPath) return;
+  if (!force) {
+    // Refuse to silently clobber a file another agent rewrote after we
+    // loaded it; surface the conflict bar instead.
+    const disk = await invoke<number | null>("stat_mtime", { path: currentPath });
+    if (disk !== null && disk !== loadedMtime) {
+      showConflict("The file changed on disk since you loaded it.");
+      return;
+    }
+  }
   try {
     const markdown = crepe.getMarkdown();
     loadedMtime = await invoke<number>("write_file", {
       path: currentPath,
       content: markdown,
     });
+    baselineMarkdown = markdown;
     setDirty(false);
+    hideConflict();
     flashSaveStatus("saved");
   } catch (err) {
     flashSaveStatus(`save failed: ${err}`);
   }
 }
 
-// Reload from disk when the window regains focus and the file changed
-// underneath us (the AI-rewrote-the-doc case). Never clobber unsaved edits.
+// ---------- Disk conflict handling ----------
+
+const conflictBar = $("conflict-bar");
+const conflictMsg = $("conflict-msg");
+
+function showConflict(message: string) {
+  conflictMsg.textContent = message;
+  conflictBar.hidden = false;
+}
+
+function hideConflict() {
+  conflictBar.hidden = true;
+}
+
+$("conflict-reload").addEventListener("click", () => {
+  hideConflict();
+  if (currentPath) void openFile(currentPath);
+});
+$("conflict-overwrite").addEventListener("click", () => void saveFile(true));
+$("conflict-dismiss").addEventListener("click", hideConflict);
+
+// When the window regains focus and the file changed underneath us (the
+// AI-rewrote-the-doc case): clean editor reloads silently; unsaved local
+// edits raise the conflict bar so you choose.
 async function maybeReloadOnFocus() {
-  if (!currentPath || dirty) return;
+  if (!currentPath) return;
   const mtime = await invoke<number | null>("stat_mtime", {
     path: currentPath,
   });
-  if (mtime !== null && mtime !== loadedMtime) {
+  if (mtime === null || mtime === loadedMtime) return;
+  if (dirty) {
+    showConflict("The file changed on disk while you have unsaved edits.");
+  } else {
     await openFile(currentPath);
     flashSaveStatus("reloaded from disk");
   }
@@ -208,7 +354,10 @@ function renderResults() {
     name.textContent = r.path.split("/").pop() ?? r.path;
     const dir = document.createElement("div");
     dir.className = "r-dir";
-    dir.textContent = r.path.slice(0, r.path.lastIndexOf("/"));
+    dir.textContent = middleTruncate(
+      tildify(r.path.slice(0, r.path.lastIndexOf("/"))),
+      78
+    );
     li.append(name, dir);
     li.addEventListener("click", () => {
       closePalette();
@@ -260,7 +409,7 @@ document.addEventListener("keydown", (e) => {
     openPalette();
   } else if (key === "s") {
     e.preventDefault();
-    void saveFile();
+    void saveFile(e.shiftKey); // ⌘⇧S force-saves past a disk conflict
   } else if (key === "r" && !e.shiftKey) {
     e.preventDefault();
     if (currentPath) void openFile(currentPath);
@@ -276,7 +425,13 @@ async function refreshIndexStatus() {
     : `${count.toLocaleString()} files indexed`;
 }
 
+$("btn-save").addEventListener("click", () => void saveFile());
+$("btn-reload").addEventListener("click", () => {
+  if (currentPath) void openFile(currentPath);
+});
+
 async function main() {
+  initAppearancePanel();
   await listen<string[]>("open-files", (event) => {
     const path = event.payload[event.payload.length - 1];
     if (path) void openFile(path);
