@@ -601,6 +601,18 @@ fn pick_save_path(window: tauri::WebviewWindow, default_name: Option<String>) ->
         .map(|p| p.to_string_lossy().to_string())
 }
 
+/// Open a link in the system default browser (or mail client). The webview
+/// never navigates: every external URL goes through here, and only web
+/// schemes are allowed so a document link cannot launch arbitrary apps.
+#[tauri::command]
+fn open_external(url: String) -> Result<(), String> {
+    let allowed = ["http://", "https://", "mailto:"];
+    if !allowed.iter().any(|s| url.starts_with(s)) {
+        return Err("unsupported url scheme".into());
+    }
+    tauri_plugin_opener::open_url(&url, None::<String>).map_err(|e| e.to_string())
+}
+
 /// Add a successfully opened file to the File > Open Recent menu.
 #[tauri::command]
 fn note_recent_file(app: tauri::AppHandle, path: String) {
@@ -631,6 +643,7 @@ fn set_window_document(window: tauri::WebviewWindow, path: Option<String>, edite
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(AppState::default())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Focused(true) = event {
@@ -655,6 +668,7 @@ pub fn run() {
             set_window_theme,
             pick_open_path,
             pick_save_path,
+            open_external,
             note_recent_file,
             set_window_document,
         ])

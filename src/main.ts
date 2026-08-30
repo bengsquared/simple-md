@@ -66,6 +66,27 @@ if (!IN_TAURI) {
   });
 }
 
+// Link policy: the webview never navigates. Inside the editable document a
+// plain click is for editing (ProseMirror handles it), so ⌘-click is the
+// open gesture, macOS-style. Anywhere else - notably the link tooltip's
+// preview anchor, whose target="_blank" WKWebView would otherwise swallow -
+// a plain click opens too. Everything goes to the system default browser.
+document.addEventListener(
+  "click",
+  (e) => {
+    const anchor = (e.target as HTMLElement).closest?.("a[href]");
+    if (!anchor) return;
+    const href = anchor.getAttribute("href") ?? "";
+    if (!/^(https?:|mailto:)/i.test(href)) return;
+    const inEditor = anchor.closest(".ProseMirror") !== null;
+    if (inEditor && !e.metaKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    void backend.openExternal(href);
+  },
+  true
+);
+
 // The filename/path are click targets (switch file); the rest of the bar
 // is the drag surface, since a drag-region element swallows clicks.
 $("file-name").addEventListener("click", openPalette);

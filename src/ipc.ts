@@ -58,6 +58,9 @@ const demoBackend: typeof tauriBackend = {
   setWindowTheme: async () => {},
   pickOpenPath: async () => null,
   pickSavePath: async () => null,
+  openExternal: async (url: string) => {
+    window.open(url, "_blank", "noopener");
+  },
   noteRecentFile: async () => {},
   setWindowDocument: async () => {},
 };
@@ -89,6 +92,8 @@ const tauriBackend = {
   setWindowTheme: (theme: string) => invoke<void>("set_window_theme", { theme }),
   /** Native open panel; null when cancelled. */
   pickOpenPath: () => invoke<string | null>("pick_open_path"),
+  /** Open an http(s)/mailto link in the system default browser. */
+  openExternal: (url: string) => invoke<void>("open_external", { url }),
   /** Native save panel seeded with defaultName; null when cancelled. */
   pickSavePath: (defaultName?: string) =>
     invoke<string | null>("pick_save_path", { defaultName }),
