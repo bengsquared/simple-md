@@ -7,6 +7,9 @@ type Voice = "standard" | "novel" | "paper" | "magazine";
 interface Prefs {
   // Typographic character: fonts, headings, ornaments. Curated set.
   voice: Voice;
+  // Type overrides on top of the voice ("auto" = voice default).
+  font: "auto" | "book" | "charter" | "newyork" | "sans" | "mono";
+  headings: "auto" | "serif" | "sans";
   // Page mechanics, independent of voice.
   paragraph: "flowing" | "indented";
   justify: "ragged" | "justified"; // justified implies hyphenation (CSS)
@@ -28,6 +31,8 @@ const VOICE_LAYOUTS: Record<Voice, LayoutPrefs> = {
 
 const DEFAULT_PREFS: Prefs = {
   voice: "standard",
+  font: "auto",
+  headings: "auto",
   ...VOICE_LAYOUTS.standard,
   width: "medium",
   zoom: "1",
@@ -59,6 +64,8 @@ function loadPrefs(): Prefs {
     }
     return {
       voice: pick(stored, "voice", ["standard", "novel", "paper", "magazine"]),
+      font: pick(stored, "font", ["auto", "book", "charter", "newyork", "sans", "mono"]),
+      headings: pick(stored, "headings", ["auto", "serif", "sans"]),
       paragraph: pick(stored, "paragraph", ["flowing", "indented"]),
       justify: pick(stored, "justify", ["ragged", "justified"]),
       density: pick(stored, "density", ["compact", "standard", "relaxed"]),
@@ -78,6 +85,8 @@ function applyPrefs() {
   root.setProperty("--editor-zoom", prefs.zoom);
   const editor = $("editor");
   editor.dataset.voice = prefs.voice;
+  editor.dataset.font = prefs.font;
+  editor.dataset.headings = prefs.headings;
   editor.dataset.paragraph = prefs.paragraph;
   editor.dataset.justify = prefs.justify;
   editor.dataset.density = prefs.density;
@@ -111,7 +120,10 @@ export function initAppearancePanel() {
       // Choosing a voice applies its layout defaults; the layout rows
       // remain free overrides afterwards.
       if (key === "voice") {
-        Object.assign(prefs, VOICE_LAYOUTS[prefs.voice]);
+        Object.assign(prefs, VOICE_LAYOUTS[prefs.voice], {
+          font: "auto",
+          headings: "auto",
+        });
       }
       localStorage.setItem("prefs", JSON.stringify(prefs));
       applyPrefs();

@@ -163,7 +163,9 @@ body {
   top: calc(var(--titlebar-h) + 8px);
   right: 12px;
   z-index: 30;
-  width: 300px;
+  width: max-content;
+  min-width: 320px;
+  max-width: 92vw;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -249,13 +251,26 @@ body {
 }
 
 /* =========================================================
-   Rendering: two independent axes.
-   VOICE (data-voice) - typographic character: fonts, headings,
-   blockquote/hr treatment, tables. A curated set, not knobs.
-   LAYOUT (data-paragraph / data-justify / data-density) - page
-   mechanics any voice can wear. Picking a voice writes layout
-   defaults (prefs.ts) which the user can then override.
+   Rendering: independent axes composed through variable
+   layering, never source order.
+   - VOICE (data-voice) declares --voice-* defaults plus the
+     per-element character (headings, hr, blockquote, tables).
+   - Overrides (data-font / data-headings / data-density)
+     declare --*-override variables.
+   - The base rule below resolves override-else-voice, so the
+     axes cannot fight and new axes cannot introduce ordering
+     bugs.
+   - data-paragraph / data-justify style properties no voice
+     touches, so they need no layering.
    ========================================================= */
+
+#editor .milkdown {
+  --crepe-font-default: var(--font-body-override, var(--voice-font-body, var(--font-sans)));
+  --crepe-font-title: var(--font-heading-override, var(--voice-font-heading, var(--font-newyork)));
+  --crepe-font-code: var(--font-mono);
+  font-size: var(--voice-size, 17.5px);
+  line-height: var(--lh-override, var(--voice-lh, 1.55));
+}
 
 /* ---------- Layout axis ---------- */
 
@@ -265,9 +280,11 @@ body {
   padding: 0;
 }
 
-/* Book rule: no indent on the first paragraph or after any break. */
+/* Book rule: no indent on the first paragraph or after any break.
+   first-of-type, not first-child: Crepe puts a widget div before the
+   first block, so first-child never matches the opening paragraph. */
 #editor[data-paragraph="indented"] .milkdown :is(h1, h2, h3, h4, h5, h6, hr) + p,
-#editor[data-paragraph="indented"] .milkdown p:first-child {
+#editor[data-paragraph="indented"] .milkdown p:first-of-type {
   text-indent: 0;
 }
 
@@ -276,32 +293,41 @@ body {
   hyphens: auto; /* justification without hyphenation makes rivers */
 }
 
-#editor[data-density="compact"] .milkdown {
-  line-height: 1.38;
+#editor[data-density="compact"] {
+  --lh-override: 1.38;
 }
 
-#editor[data-density="relaxed"] .milkdown {
-  line-height: 1.72;
+#editor[data-density="relaxed"] {
+  --lh-override: 1.72;
 }
+
+/* ---------- Type overrides (auto = voice default) ---------- */
+
+#editor[data-font="book"]    { --font-body-override: var(--font-book); }
+#editor[data-font="charter"] { --font-body-override: var(--font-charter); }
+#editor[data-font="newyork"] { --font-body-override: var(--font-newyork); }
+#editor[data-font="sans"]    { --font-body-override: var(--font-sans); }
+#editor[data-font="mono"]    { --font-body-override: var(--font-mono); }
+
+#editor[data-headings="serif"] { --font-heading-override: var(--font-newyork); }
+#editor[data-headings="sans"]  { --font-heading-override: var(--font-display); }
 
 /* ---------- Voice: Standard - screen-native manuscript ---------- */
 
-#editor[data-voice="standard"] .milkdown {
-  --crepe-font-title: var(--font-newyork);
-  --crepe-font-default: var(--font-sans);
-  --crepe-font-code: var(--font-mono);
-  font-size: 17.5px;
-  line-height: 1.55;
+#editor[data-voice="standard"] {
+  --voice-font-body: var(--font-sans);
+  --voice-font-heading: var(--font-newyork);
+  --voice-size: 17.5px;
+  --voice-lh: 1.55;
 }
 
 /* ---------- Voice: Novel - trade-fiction book page ---------- */
 
-#editor[data-voice="novel"] .milkdown {
-  --crepe-font-title: var(--font-book);
-  --crepe-font-default: var(--font-book);
-  --crepe-font-code: var(--font-mono);
-  font-size: 19px;
-  line-height: 1.5;
+#editor[data-voice="novel"] {
+  --voice-font-body: var(--font-book);
+  --voice-font-heading: var(--font-book);
+  --voice-size: 19px;
+  --voice-lh: 1.5;
 }
 
 #editor[data-voice="novel"] .milkdown h1 {
@@ -310,7 +336,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.06em;
   font-size: 1.5em;
-  margin-top: 1.8em;
+  margin: 1.8em 0 0.8em;
 }
 
 #editor[data-voice="novel"] .milkdown h2 {
@@ -319,6 +345,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.08em;
   font-size: 1.2em;
+  margin: 1.6em 0 0.55em;
 }
 
 #editor[data-voice="novel"] .milkdown h3 {
@@ -326,6 +353,7 @@ body {
   font-style: italic;
   font-weight: 400;
   font-size: 1.05em;
+  margin: 1.3em 0 0.45em;
 }
 
 #editor[data-voice="novel"] .milkdown h4,
@@ -334,6 +362,7 @@ body {
   font-variant-caps: small-caps;
   font-weight: 600;
   font-size: 1em;
+  margin: 1.2em 0 0.35em;
 }
 
 #editor[data-voice="novel"] .milkdown hr {
@@ -361,12 +390,14 @@ body {
 
 /* ---------- Voice: Paper - LaTeX article manners ---------- */
 
+#editor[data-voice="paper"] {
+  --voice-font-body: var(--font-charter);
+  --voice-font-heading: var(--font-charter);
+  --voice-size: 17px;
+  --voice-lh: 1.6;
+}
+
 #editor[data-voice="paper"] .milkdown {
-  --crepe-font-title: var(--font-charter);
-  --crepe-font-default: var(--font-charter);
-  --crepe-font-code: var(--font-mono);
-  font-size: 17px;
-  line-height: 1.6;
   counter-reset: sec subsec;
 }
 
@@ -374,7 +405,7 @@ body {
   text-align: center;
   font-weight: 400;
   font-size: 1.65em;
-  margin-bottom: 0.8em;
+  margin-bottom: 0.9em;
 }
 
 #editor[data-voice="paper"] .milkdown h2 {
@@ -382,6 +413,7 @@ body {
   counter-reset: subsec;
   font-weight: 600;
   font-size: 1.25em;
+  margin: 1.6em 0 0.5em;
 }
 
 #editor[data-voice="paper"] .milkdown h2::before {
@@ -393,6 +425,7 @@ body {
   font-weight: 600;
   font-style: italic;
   font-size: 1.05em;
+  margin: 1.3em 0 0.4em;
 }
 
 #editor[data-voice="paper"] .milkdown h3::before {
@@ -406,6 +439,7 @@ body {
   font-weight: 600;
   font-style: italic;
   font-size: 1em;
+  margin: 1.2em 0 0.35em;
 }
 
 #editor[data-voice="paper"] .milkdown blockquote {
@@ -426,12 +460,11 @@ body {
 
 /* ---------- Voice: Magazine - feature spread ---------- */
 
-#editor[data-voice="magazine"] .milkdown {
-  --crepe-font-title: var(--font-display);
-  --crepe-font-default: var(--font-sans);
-  --crepe-font-code: var(--font-mono);
-  font-size: 17px;
-  line-height: 1.5;
+#editor[data-voice="magazine"] {
+  --voice-font-body: var(--font-sans);
+  --voice-font-heading: var(--font-display);
+  --voice-size: 17px;
+  --voice-lh: 1.5;
 }
 
 #editor[data-voice="magazine"] .milkdown h1 {
@@ -439,6 +472,7 @@ body {
   font-size: 2.6em;
   line-height: 1.05;
   letter-spacing: -0.015em;
+  margin-bottom: 0.45em;
 }
 
 /* Standfirst: only the paragraph after the document-opening h1. */
@@ -451,11 +485,13 @@ body {
 #editor[data-voice="magazine"] .milkdown h2 {
   font-weight: 700;
   font-size: 1.4em;
+  margin: 1.5em 0 0.4em;
 }
 
 #editor[data-voice="magazine"] .milkdown h3 {
   font-weight: 700;
   font-size: 1.15em;
+  margin: 1.3em 0 0.35em;
 }
 
 #editor[data-voice="magazine"] .milkdown h4,
@@ -463,6 +499,7 @@ body {
 #editor[data-voice="magazine"] .milkdown h6 {
   font-weight: 700;
   font-size: 1em;
+  margin: 1.2em 0 0.3em;
 }
 
 #editor[data-voice="magazine"] .milkdown blockquote {

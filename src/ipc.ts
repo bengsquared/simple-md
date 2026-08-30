@@ -26,6 +26,7 @@ export function isConflict(err: unknown): boolean {
 }
 
 const DEMO_FILES = [
+  "/samples/markdown-cheatsheet.md",
   "/samples/alice-staged.md",
   "/samples/markdown-syntax-gruber-2004.md",
   "/samples/semver-spec.md",
