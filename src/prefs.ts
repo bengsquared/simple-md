@@ -17,7 +17,7 @@ interface Prefs {
   headingAlign: "auto" | "left" | "center";
   sectionBreak: "auto" | "line" | "dinkus" | "fleuron";
   ornaments: "auto" | "on" | "off";
-  headingNumbers: "auto" | "off";
+  headingNumbers: "auto" | "on" | "off";
   // Page mechanics, independent of voice.
   paragraph: "flowing" | "indented";
   justify: "ragged" | "justified"; // justified implies hyphenation (CSS)
@@ -101,7 +101,7 @@ function loadPrefs(): Prefs {
       headingAlign: pick(stored, "headingAlign", ["auto", "left", "center"]),
       sectionBreak: pick(stored, "sectionBreak", ["auto", "line", "dinkus", "fleuron"]),
       ornaments: pick(stored, "ornaments", ["auto", "on", "off"]),
-      headingNumbers: pick(stored, "headingNumbers", ["auto", "off"]),
+      headingNumbers: pick(stored, "headingNumbers", ["auto", "on", "off"]),
       paragraph: pick(stored, "paragraph", ["flowing", "indented"]),
       justify: pick(stored, "justify", ["ragged", "justified"]),
       density: pick(stored, "density", ["compact", "standard", "relaxed"]),

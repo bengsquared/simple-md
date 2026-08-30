@@ -301,7 +301,26 @@ body {
   /* Zoom scales reading size, not layout: CSS `zoom` distorts hit-testing
      and scroll math in WKWebView, so it multiplies font-size instead. */
   font-size: calc(var(--voice-size, 17.5px) * var(--editor-zoom, 1));
-  line-height: var(--lh-override, var(--voice-lh, 1.55));
+  --lh: var(--lh-override, var(--voice-lh, 1.55));
+  line-height: var(--lh);
+}
+
+/* Crepe pins `.ProseMirror p { line-height: 1.5 }`, which beats the
+   inherited voice/density leading. Hand it back to the cascade. */
+#editor .milkdown .ProseMirror p {
+  line-height: inherit;
+}
+
+/* Crepe's list bullet sits centered in a hardcoded 32px box, which only
+   lines up with a 32px first line. Size the box to one line box instead
+   so the marker centers on the first line at any leading and zoom. */
+#editor .milkdown .milkdown-list-item-block li .label-wrapper {
+  height: calc(1em * var(--lh));
+}
+
+#editor .milkdown .milkdown-list-item-block li .label-wrapper .label {
+  height: auto;
+  padding: 0;
 }
 
 /* ---------- Layout axis ---------- */
@@ -311,6 +330,22 @@ body {
 #editor[data-paragraph="flowing"] .milkdown p {
   margin: 0.6em 0;
   padding: 0;
+}
+
+/* Inside a list item the marker aligns to the top of the content box,
+   so a leading paragraph margin shears text away from its bullet.
+   Trim the edges; interior paragraphs keep the flowing rhythm. */
+#editor[data-paragraph="flowing"] .milkdown li p:first-of-type {
+  margin-top: 0;
+}
+
+#editor[data-paragraph="flowing"] .milkdown li p:last-of-type {
+  margin-bottom: 0;
+}
+
+/* Items breathe at half the paragraph step: related, but distinct. */
+#editor[data-paragraph="flowing"] .milkdown li + li {
+  margin-top: 0.3em;
 }
 
 #editor[data-paragraph="indented"] .milkdown p {
@@ -669,6 +704,29 @@ body {
   letter-spacing: 0;
   color: color-mix(in srgb, var(--fg) 80%, transparent);
   font-size: 1.1em;
+}
+
+/* Heading numbers: auto = whatever the voice does (only Paper numbers),
+   on = force Paper's section counters in any voice, off = never. */
+#editor[data-heading-numbers="on"] .milkdown {
+  counter-reset: sec subsec;
+}
+
+#editor[data-heading-numbers="on"] .milkdown h2 {
+  counter-increment: sec;
+  counter-reset: subsec;
+}
+
+#editor[data-heading-numbers="on"] .milkdown h2::before {
+  content: counter(sec) "\2003";
+}
+
+#editor[data-heading-numbers="on"] .milkdown h3 {
+  counter-increment: subsec;
+}
+
+#editor[data-heading-numbers="on"] .milkdown h3::before {
+  content: counter(sec) "." counter(subsec) "\2003";
 }
 
 #editor[data-heading-numbers="off"] .milkdown :is(h2, h3)::before {
