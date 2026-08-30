@@ -495,8 +495,7 @@ body {
 #editor[data-voice="paper"] .milkdown h4,
 #editor[data-voice="paper"] .milkdown h5,
 #editor[data-voice="paper"] .milkdown h6 {
-  font-weight: 600;
-  font-style: italic;
+  font-weight: 600; /* never bold+italic stacked (Butterick) */
   font-size: 1em;
   margin: 1.2em 0 0.6em;
 }
