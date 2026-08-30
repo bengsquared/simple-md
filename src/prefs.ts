@@ -62,7 +62,9 @@ const DEFAULT_PREFS: Prefs = {
 const WIDTHS: Record<Prefs["width"], [string, string]> = {
   narrow: ["620px", "40px"],
   medium: ["760px", "48px"],
-  wide: ["860px", "56px"], /* ~74-90ch; 980px broke the 75ch ceiling */
+  // Wide exceeds the 75ch prose ceiling on purpose: it exists for
+  // table- and code-heavy documents where cell measure governs.
+  wide: ["980px", "56px"],
   full: ["100%", "56px"],
 };
 

@@ -257,7 +257,9 @@ body {
 }
 
 #editor {
-  max-width: var(--content-width, 860px);
+  /* Width scales with zoom so the measure (characters per line) stays
+     constant: zoom is page magnification, not a measure change. */
+  max-width: min(calc(var(--content-width, 760px) * var(--editor-zoom, 1)), 100%);
   margin: 0 auto;
   padding: 24px var(--page-pad, 48px) 40vh;
 }
@@ -321,6 +323,13 @@ body {
 #editor[data-justify="justified"] .milkdown p {
   text-align: justify;
   hyphens: auto; /* justification without hyphenation makes rivers */
+}
+
+/* Never justify inside table cells: at cell measure (~20-40ch) justified
+   text is all rivers. Cells stay ragged in every layout. */
+#editor[data-justify="justified"] .milkdown :is(th, td) p {
+  text-align: left;
+  hyphens: manual;
 }
 
 #editor[data-density="compact"] {
@@ -671,6 +680,18 @@ body {
 #editor[data-voice="paper"] .milkdown blockquote::before,
 #editor[data-voice="magazine"] .milkdown blockquote::before {
   content: none;
+}
+
+/* Content-aware tables: ProseMirror's table-layout: fixed distributes
+   columns evenly regardless of content, so a short label column wastes
+   half the measure. Auto layout sizes to content; explicitly resized
+   columns (data-colwidth) keep their widths. */
+#editor .milkdown .ProseMirror table {
+  table-layout: auto;
+}
+
+#editor .milkdown .ProseMirror :is(td, th):not([data-colwidth]) {
+  min-width: 3ch;
 }
 
 /* Lists: align the print voices' list indent to their paragraph rhythm;
