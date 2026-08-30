@@ -259,7 +259,7 @@ body {
 #editor {
   max-width: var(--content-width, 860px);
   margin: 0 auto;
-  padding: 24px 48px 40vh;
+  padding: 24px var(--page-pad, 48px) 40vh;
 }
 
 :root {
@@ -296,6 +296,13 @@ body {
 }
 
 /* ---------- Layout axis ---------- */
+
+/* Flowing mode: inter-paragraph space at ~60% of body size
+   (Butterick: 50-100% of point size when not indenting). */
+#editor[data-paragraph="flowing"] .milkdown p {
+  margin: 0.6em 0;
+  padding: 0;
+}
 
 #editor[data-paragraph="indented"] .milkdown p {
   text-indent: var(--indent-depth, 1.4em);
@@ -666,6 +673,13 @@ body {
   content: none;
 }
 
+/* Lists: align the print voices' list indent to their paragraph rhythm;
+   solid default bullets already satisfy Butterick's marker guidance. */
+#editor[data-voice="novel"] .milkdown :is(ul, ol),
+#editor[data-voice="paper"] .milkdown :is(ul, ol) {
+  padding-left: 1.6em;
+}
+
 /* Booktabs tables for the print voices: horizontal rules only. */
 #editor[data-voice="novel"] .milkdown :is(th, td),
 #editor[data-voice="paper"] .milkdown :is(th, td) {
@@ -676,6 +690,17 @@ body {
 #editor[data-voice="novel"] .milkdown th,
 #editor[data-voice="paper"] .milkdown th {
   border-bottom: 1.5px solid var(--fg);
+}
+
+/* Magazine tables: booktabs with the voice's heavier rule weight.
+   Standard keeps Crepe's grid deliberately - the screen-native look. */
+#editor[data-voice="magazine"] .milkdown :is(th, td) {
+  border-left: none;
+  border-right: none;
+}
+
+#editor[data-voice="magazine"] .milkdown th {
+  border-bottom: 2px solid var(--fg);
 }
 
 /* The ID-scoped overrides above outrank Crepe's selected-node rule;

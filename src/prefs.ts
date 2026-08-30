@@ -57,11 +57,13 @@ const DEFAULT_PREFS: Prefs = {
   zoom: "1",
 };
 
-const WIDTHS: Record<Prefs["width"], string> = {
-  narrow: "620px",
-  medium: "760px",
-  wide: "860px", /* ~74-90ch; 980px broke the 75ch ceiling in every voice */
-  full: "100%",
+// [column width, side padding]: padding scales with the stop so the fixed
+// chrome doesn't read generous at narrow and tight at wide.
+const WIDTHS: Record<Prefs["width"], [string, string]> = {
+  narrow: ["620px", "40px"],
+  medium: ["760px", "48px"],
+  wide: ["860px", "56px"], /* ~74-90ch; 980px broke the 75ch ceiling */
+  full: ["100%", "56px"],
 };
 
 function pick<K extends keyof Prefs>(
@@ -106,7 +108,9 @@ const prefs = loadPrefs();
 function applyPrefs() {
   void backend.setWindowTheme(prefs.appearance);
   const root = document.documentElement.style;
-  root.setProperty("--content-width", WIDTHS[prefs.width] ?? WIDTHS.medium);
+  const [width, pad] = WIDTHS[prefs.width] ?? WIDTHS.medium;
+  root.setProperty("--content-width", width);
+  root.setProperty("--page-pad", pad);
   root.setProperty("--editor-zoom", prefs.zoom);
   const editor = $("editor");
   editor.dataset.voice = prefs.voice;
