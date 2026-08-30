@@ -106,3 +106,64 @@ async function main() {
 }
 
 void main();
+
+// Dev-only WKWebView ground truth: run the toggle sweep inside the real
+// Tauri webview and write results to a file, since the webview cannot be
+// driven by external tooling. Never runs in production builds.
+if (import.meta.env.DEV && IN_TAURI && localStorage.getItem("selftest")) {
+  setTimeout(async () => {
+    try {
+      await openFile(
+        "/Users/ben/Documents/Projects/code/enzo/md-machine/samples/markdown-cheatsheet.md"
+      );
+      const ed = $("editor");
+      const milk = document.querySelector(".milkdown") as HTMLElement;
+      const pm = document.querySelector(".ProseMirror") as HTMLElement;
+      if (!milk || !pm) return;
+      const cs = (el: Element, p: string, pseudo?: string) =>
+        getComputedStyle(el, pseudo).getPropertyValue(p);
+      const set = (a: Record<string, string>) =>
+        Object.entries(a).forEach(([k, v]) => (ed.dataset[k] = v));
+      const hr = pm.querySelector("hr");
+      const h1 = pm.querySelector("h1");
+      const results: Record<string, unknown> = {
+        doc: document.title,
+        hasHr: !!hr,
+        hasH1: !!h1,
+        blocks: [...pm.children].map((c) => c.tagName).slice(0, 20),
+      };
+      set({ voice: "novel", density: "relaxed" });
+      results.relaxedLh = cs(milk, "line-height");
+      set({ density: "compact" });
+      results.compactLh = cs(milk, "line-height");
+      set({ density: "standard" });
+      results.standardLh = cs(milk, "line-height");
+      if (hr) {
+        set({ sectionBreak: "fleuron" });
+        results.fleuronBreak = cs(hr, "content", "::before");
+        set({ sectionBreak: "dinkus" });
+        results.dinkusBreak = cs(hr, "content", "::before");
+        results.dinkusColor = cs(hr, "color", "::before");
+        set({ sectionBreak: "auto" });
+        results.autoBreakNovel = cs(hr, "content", "::before");
+      }
+      if (h1) {
+        set({ ornaments: "on" });
+        results.ornamentOn = cs(h1, "content", "::after");
+        set({ ornaments: "off" });
+        results.ornamentOff = cs(h1, "content", "::after");
+        set({ ornaments: "auto" });
+        results.ornamentAutoNovel = cs(h1, "content", "::after");
+        set({ headingCase: "normal" });
+        results.caseNormal = cs(h1, "font-variant-caps");
+        set({ headingCase: "auto" });
+      }
+      await backend.writeFile(
+        "/tmp/mdmachine-selftest.json",
+        JSON.stringify(results, null, 2)
+      );
+    } catch (err) {
+      await backend.writeFile("/tmp/mdmachine-selftest.json", String(err));
+    }
+  }, 4000);
+}

@@ -2,13 +2,17 @@
 // preview slot. Everything mermaid-specific lives here.
 import mermaid from "mermaid";
 
-mermaid.initialize({
-  startOnLoad: false,
-  theme: window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "default",
-  securityLevel: "strict",
-});
+// Re-read the scheme per render so diagrams follow live theme changes
+// (the Appearance control flips the native window theme at runtime).
+function syncMermaidTheme() {
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "default",
+    securityLevel: "strict",
+  });
+}
 
 let seq = 0;
 
@@ -18,6 +22,7 @@ export function renderMermaidPreview(
   applyPreview: (value: null | string | HTMLElement) => void
 ): void | null {
   if (language.toLowerCase() !== "mermaid" || !content.trim()) return null;
+  syncMermaidTheme();
   const id = `mermaid-${seq++}`;
   mermaid
     .render(id, content)

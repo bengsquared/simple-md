@@ -515,6 +515,20 @@ fn take_pending_open(state: State<AppState>) -> Vec<String> {
     std::mem::take(&mut *lock(&state.pending_open))
 }
 
+/// Override the native window theme (drives prefers-color-scheme in the
+/// webview and the titlebar chrome together). "auto" follows the system.
+#[tauri::command]
+fn set_window_theme(app: tauri::AppHandle, theme: String) {
+    let t = match theme.as_str() {
+        "light" => Some(tauri::Theme::Light),
+        "dark" => Some(tauri::Theme::Dark),
+        _ => None,
+    };
+    for w in app.webview_windows().values() {
+        let _ = w.set_theme(t);
+    }
+}
+
 /// User override stylesheet, loaded after the built-in voice rules.
 /// Lives beside roots.json; absent file means no overrides.
 #[tauri::command]
@@ -543,8 +557,7 @@ fn new_window(app: tauri::AppHandle) -> Result<(), String> {
     {
         builder = builder
             .title_bar_style(tauri::TitleBarStyle::Overlay)
-            .hidden_title(true)
-            .traffic_light_position(tauri::LogicalPosition::new(16.0, 14.0));
+            .hidden_title(true);
     }
     builder.build().map_err(|e| e.to_string())?;
     Ok(())
@@ -567,6 +580,7 @@ pub fn run() {
             take_pending_open,
             new_window,
             read_theme_css,
+            set_window_theme,
         ])
         .setup(|app| {
             init_index(app.handle().clone());

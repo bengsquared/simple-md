@@ -53,6 +53,7 @@ const demoBackend: typeof tauriBackend = {
     window.open(location.href);
   },
   readThemeCss: async () => null,
+  setWindowTheme: async () => {},
 };
 
 const tauriBackend = {
@@ -78,6 +79,8 @@ const tauriBackend = {
   newWindow: () => invoke<void>("new_window"),
   /** User override stylesheet (app config dir/theme.css), or null. */
   readThemeCss: () => invoke<string | null>("read_theme_css"),
+  /** Native window theme: "light" | "dark" | "auto" (follow system). */
+  setWindowTheme: (theme: string) => invoke<void>("set_window_theme", { theme }),
 };
 
 export const backend = IN_TAURI ? tauriBackend : demoBackend;

@@ -1,10 +1,13 @@
 // Appearance preferences: the panel, persistence, and how each choice maps
 // onto CSS custom properties. Nothing else knows how styling is stored.
 import { $ } from "./dom";
+import { backend } from "./ipc";
 
 type Voice = "standard" | "novel" | "paper" | "magazine";
 
 interface Prefs {
+  // Window theme: follows system, or forced. Not voice-related.
+  appearance: "auto" | "light" | "dark";
   // Typographic character: fonts, headings, ornaments. Curated set.
   voice: Voice;
   // Overrides on top of the voice ("auto" = voice default).
@@ -22,15 +25,16 @@ interface Prefs {
   zoom: string;
 }
 
-type LayoutPrefs = Pick<Prefs, "paragraph" | "justify" | "density">;
+type LayoutPrefs = Pick<Prefs, "paragraph" | "justify" | "density" | "width">;
 
 // Applied when a voice is *selected*, so each voice looks right
 // immediately; the layout rows override freely afterwards.
 const VOICE_LAYOUTS: Record<Voice, LayoutPrefs> = {
-  standard: { paragraph: "flowing", justify: "ragged", density: "standard" },
-  novel: { paragraph: "indented", justify: "justified", density: "standard" },
-  paper: { paragraph: "indented", justify: "justified", density: "standard" },
-  magazine: { paragraph: "flowing", justify: "ragged", density: "standard" },
+  standard: { paragraph: "flowing", justify: "ragged", density: "standard", width: "medium" },
+  novel: { paragraph: "indented", justify: "justified", density: "standard", width: "medium" },
+  // Paper defaults narrow: ~62ch at Charter 17px, matching LaTeX's ~60ch.
+  paper: { paragraph: "indented", justify: "justified", density: "standard", width: "narrow" },
+  magazine: { paragraph: "flowing", justify: "ragged", density: "standard", width: "medium" },
 };
 
 // Every voice-level decision an override can unpick, reset when a voice
@@ -45,6 +49,7 @@ const AUTO_OVERRIDES = {
 } as const;
 
 const DEFAULT_PREFS: Prefs = {
+  appearance: "auto",
   voice: "standard",
   ...AUTO_OVERRIDES,
   ...VOICE_LAYOUTS.standard,
@@ -55,7 +60,7 @@ const DEFAULT_PREFS: Prefs = {
 const WIDTHS: Record<Prefs["width"], string> = {
   narrow: "620px",
   medium: "760px",
-  wide: "980px",
+  wide: "860px", /* ~74-90ch; 980px broke the 75ch ceiling in every voice */
   full: "100%",
 };
 
@@ -77,6 +82,7 @@ function loadPrefs(): Prefs {
       Object.assign(stored, VOICE_LAYOUTS[stored.preset as Voice] ?? {});
     }
     return {
+      appearance: pick(stored, "appearance", ["auto", "light", "dark"]),
       voice: pick(stored, "voice", ["standard", "novel", "paper", "magazine"]),
       font: pick(stored, "font", ["auto", "book", "charter", "newyork", "sans", "mono"]),
       headings: pick(stored, "headings", ["auto", "serif", "sans"]),
@@ -98,6 +104,7 @@ function loadPrefs(): Prefs {
 const prefs = loadPrefs();
 
 function applyPrefs() {
+  void backend.setWindowTheme(prefs.appearance);
   const root = document.documentElement.style;
   root.setProperty("--content-width", WIDTHS[prefs.width] ?? WIDTHS.medium);
   root.setProperty("--editor-zoom", prefs.zoom);

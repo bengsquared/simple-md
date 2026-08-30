@@ -4,7 +4,7 @@
   --muted: #8a8a8a;
   --border: #e6e2dc;
   --accent: #0b6bcb;
-  --titlebar-h: 40px;
+  --titlebar-h: 30px; /* matches macOS's default traffic-light centering */
   --statusbar-h: 26px;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
 }
@@ -46,7 +46,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 16px 0 84px; /* clear the traffic lights */
+  padding: 0 12px 0 78px; /* clear the traffic lights */
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: blur(12px);
@@ -93,8 +93,8 @@ body {
 
 #titlebar-actions button {
   font-family: inherit;
-  font-size: 12px;
-  padding: 3px 9px;
+  font-size: 11px;
+  padding: 2px 8px;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: transparent;
@@ -340,8 +340,36 @@ body {
 #editor[data-voice="standard"] {
   --voice-font-body: var(--font-sans);
   --voice-font-heading: var(--font-newyork);
-  --voice-size: 17.5px;
+  --voice-size: 18px;
   --voice-lh: 1.55;
+}
+
+/* Explicit major-third scale (1.25) with ~2:1 space above:below, so the
+   voice is measurable against the spec instead of Crepe's defaults. */
+#editor[data-voice="standard"] .milkdown h1 {
+  font-size: 1.95em;
+  font-weight: 600;
+  margin: 1.6em 0 0.8em;
+}
+
+#editor[data-voice="standard"] .milkdown h2 {
+  font-size: 1.56em;
+  font-weight: 600;
+  margin: 1.5em 0 0.75em;
+}
+
+#editor[data-voice="standard"] .milkdown h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin: 1.3em 0 0.65em;
+}
+
+#editor[data-voice="standard"] .milkdown h4,
+#editor[data-voice="standard"] .milkdown h5,
+#editor[data-voice="standard"] .milkdown h6 {
+  font-size: 1em;
+  font-weight: 600;
+  margin: 1.2em 0 0.6em;
 }
 
 /* ---------- Voice: Novel - trade-fiction book page ---------- */
@@ -378,7 +406,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.08em;
   font-size: 1.2em;
-  margin: 1.6em 0 0.55em;
+  margin: 1.6em 0 0.8em;
 }
 
 #editor[data-voice="novel"] .milkdown h3 {
@@ -386,7 +414,7 @@ body {
   font-style: italic;
   font-weight: 400;
   font-size: 1.05em;
-  margin: 1.3em 0 0.45em;
+  margin: 1.3em 0 0.65em;
 }
 
 #editor[data-voice="novel"] .milkdown h4,
@@ -395,7 +423,7 @@ body {
   font-variant-caps: small-caps;
   font-weight: 600;
   font-size: 1em;
-  margin: 1.2em 0 0.35em;
+  margin: 1.2em 0 0.6em;
 }
 
 #editor[data-voice="novel"] .milkdown hr {
@@ -427,7 +455,7 @@ body {
   --voice-font-body: var(--font-charter);
   --voice-font-heading: var(--font-charter);
   --voice-size: 17px;
-  --voice-lh: 1.6;
+  --voice-lh: 1.48; /* print-flavored: tighter than the screen voices */
 }
 
 #editor[data-voice="paper"] .milkdown {
@@ -436,9 +464,9 @@ body {
 
 #editor[data-voice="paper"] .milkdown h1 {
   text-align: center;
-  font-weight: 400;
-  font-size: 1.65em;
-  margin-bottom: 0.9em;
+  font-weight: 700; /* article-class \maketitle is bold */
+  font-size: 1.5em;
+  margin: 1.8em 0 0.9em;
 }
 
 #editor[data-voice="paper"] .milkdown h2 {
@@ -446,7 +474,7 @@ body {
   counter-reset: subsec;
   font-weight: 600;
   font-size: 1.25em;
-  margin: 1.6em 0 0.5em;
+  margin: 1.6em 0 0.8em;
 }
 
 #editor[data-voice="paper"] .milkdown h2::before {
@@ -456,14 +484,12 @@ body {
 #editor[data-voice="paper"] .milkdown h3 {
   counter-increment: subsec;
   font-weight: 600;
-  font-style: italic;
   font-size: 1.05em;
-  margin: 1.3em 0 0.4em;
+  margin: 1.3em 0 0.65em;
 }
 
 #editor[data-voice="paper"] .milkdown h3::before {
   content: counter(sec) "." counter(subsec) "\2002";
-  font-style: normal;
 }
 
 #editor[data-voice="paper"] .milkdown h4,
@@ -472,7 +498,7 @@ body {
   font-weight: 600;
   font-style: italic;
   font-size: 1em;
-  margin: 1.2em 0 0.35em;
+  margin: 1.2em 0 0.6em;
 }
 
 #editor[data-voice="paper"] .milkdown blockquote {
@@ -518,13 +544,13 @@ body {
 #editor[data-voice="magazine"] .milkdown h2 {
   font-weight: 700;
   font-size: 1.4em;
-  margin: 1.5em 0 0.4em;
+  margin: 1.5em 0 0.75em;
 }
 
 #editor[data-voice="magazine"] .milkdown h3 {
   font-weight: 700;
   font-size: 1.15em;
-  margin: 1.3em 0 0.35em;
+  margin: 1.3em 0 0.65em;
 }
 
 #editor[data-voice="magazine"] .milkdown h4,
@@ -532,7 +558,7 @@ body {
 #editor[data-voice="magazine"] .milkdown h6 {
   font-weight: 700;
   font-size: 1em;
-  margin: 1.2em 0 0.3em;
+  margin: 1.2em 0 0.6em;
 }
 
 #editor[data-voice="magazine"] .milkdown blockquote {
@@ -669,6 +695,11 @@ body {
   }
   #editor[data-voice="magazine"] .milkdown h1 {
     font-weight: 700;
+  }
+  #editor[data-voice="paper"] .milkdown h1,
+  #editor[data-voice="paper"] .milkdown h2,
+  #editor[data-voice="paper"] .milkdown h3 {
+    font-weight: 500;
   }
 }
 
