@@ -64,12 +64,17 @@ function applyPrefs() {
 
 export function initAppearancePanel() {
   const panel = $("appearance-panel");
-  $("btn-appearance").addEventListener("click", (e) => {
-    e.stopPropagation();
+  const button = $("btn-appearance");
+  button.addEventListener("click", () => {
     panel.hidden = !panel.hidden;
   });
+  // Close on outside click - but not on the toggle button, whose mousedown
+  // would otherwise close the panel just before its click re-opens it.
   document.addEventListener("mousedown", (e) => {
-    if (!panel.hidden && !panel.contains(e.target as Node)) panel.hidden = true;
+    const target = e.target as Node;
+    if (!panel.hidden && !panel.contains(target) && !button.contains(target)) {
+      panel.hidden = true;
+    }
   });
   panel.querySelectorAll<HTMLButtonElement>(".ap-seg button").forEach((btn) => {
     btn.addEventListener("click", () => {
