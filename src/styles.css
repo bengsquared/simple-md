@@ -471,7 +471,8 @@ body {
   --voice-font-body: var(--font-charter);
   --voice-font-heading: var(--font-charter);
   --voice-size: 17px;
-  --voice-lh: 1.48; /* print-flavored: tighter than the screen voices */
+  --voice-lh: 1.52; /* screen-adapted from LaTeX's 1.2; LaTeX.css's 1.8 is a blog */
+  --indent-depth: 1.5em; /* article.cls \parindent = 15pt = exactly 1.5em */
 }
 
 #editor[data-voice="paper"] .milkdown {
@@ -480,40 +481,41 @@ body {
 
 #editor[data-voice="paper"] .milkdown h1 {
   text-align: center;
-  font-weight: 700; /* article-class \maketitle is bold */
-  font-size: 1.5em;
+  font-weight: 400; /* \maketitle's {\LARGE \@title} is NOT bold */
+  font-size: 1.73em; /* \LARGE = 17.28pt/10pt */
   margin: 1.8em 0 0.9em;
 }
 
 #editor[data-voice="paper"] .milkdown h2 {
   counter-increment: sec;
   counter-reset: subsec;
-  font-weight: 600;
-  font-size: 1.25em;
-  margin: 1.6em 0 0.8em;
+  font-weight: 700; /* \bfseries */
+  font-size: 1.44em; /* \Large = 14.4pt/10pt */
+  /* 3.5ex/2.3ex of BODY em, reconverted to the heading's own em */
+  margin: 1.22em 0 0.8em;
 }
 
 #editor[data-voice="paper"] .milkdown h2::before {
-  content: counter(sec) "\2002";
+  content: counter(sec) "\2003"; /* em space = \quad */
 }
 
 #editor[data-voice="paper"] .milkdown h3 {
   counter-increment: subsec;
-  font-weight: 600;
-  font-size: 1.05em;
-  margin: 1.3em 0 0.65em;
+  font-weight: 700;
+  font-size: 1.2em; /* \large = 12pt/10pt */
+  margin: 1.35em 0 0.625em;
 }
 
 #editor[data-voice="paper"] .milkdown h3::before {
-  content: counter(sec) "." counter(subsec) "\2002";
+  content: counter(sec) "." counter(subsec) "\2003";
 }
 
 #editor[data-voice="paper"] .milkdown h4,
 #editor[data-voice="paper"] .milkdown h5,
 #editor[data-voice="paper"] .milkdown h6 {
-  font-weight: 600; /* never bold+italic stacked (Butterick) */
-  font-size: 1em;
-  margin: 1.2em 0 0.6em;
+  font-weight: 700; /* \bfseries; never bold+italic stacked (Butterick) */
+  font-size: 1em; /* \normalsize */
+  margin: 1.625em 0 0.75em;
 }
 
 #editor[data-voice="paper"] .milkdown blockquote {
@@ -550,7 +552,8 @@ body {
 }
 
 /* Standfirst: only the paragraph after the document-opening h1. */
-#editor[data-voice="magazine"] .milkdown .ProseMirror > h1:first-child + p {
+/* first-of-type: Crepe precedes the first block with a widget div */
+#editor[data-voice="magazine"] .milkdown .ProseMirror > h1:first-of-type + p {
   font-size: 1.2em;
   line-height: 1.4;
   color: color-mix(in srgb, var(--fg) 62%, transparent);
@@ -657,6 +660,10 @@ body {
   font-size: 1.1em;
 }
 
+#editor[data-heading-numbers="off"] .milkdown :is(h2, h3)::before {
+  content: none;
+}
+
 /* Chapter ornament under h1: on forces it in any voice, off removes it. */
 #editor[data-ornaments="on"] .milkdown h1::after {
   content: "❦";
@@ -741,10 +748,10 @@ body {
   #editor[data-voice="magazine"] .milkdown h1 {
     font-weight: 700;
   }
-  #editor[data-voice="paper"] .milkdown h1,
   #editor[data-voice="paper"] .milkdown h2,
-  #editor[data-voice="paper"] .milkdown h3 {
-    font-weight: 500;
+  #editor[data-voice="paper"] .milkdown h3,
+  #editor[data-voice="paper"] .milkdown h4 {
+    font-weight: 600;
   }
 }
 

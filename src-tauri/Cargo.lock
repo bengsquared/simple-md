@@ -2951,6 +2951,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea"
 
 [[package]]
+name = "simple-md"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "ignore",
+ "notify",
+ "nucleo-matcher",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+]
+
+[[package]]
 name = "siphasher"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3244,20 +3258,6 @@ dependencies = [
  "webview2-com",
  "window-vibrancy",
  "windows",
-]
-
-[[package]]
-name = "tauri-app"
-version = "0.1.0"
-dependencies = [
- "dirs",
- "ignore",
- "notify",
- "nucleo-matcher",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
 ]
 
 [[package]]

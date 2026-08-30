@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "MD Machine",
+  "productName": "Simple MD",
   "version": "0.1.0",
-  "identifier": "co.useenso.mdmachine",
+  "identifier": "co.useenso.simplemd",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "macOSPrivateApi": false,
     "windows": [
       {
-        "title": "MD Machine",
+        "title": "Simple MD",
         "width": 1100,
         "height": 820,
         "minWidth": 600,

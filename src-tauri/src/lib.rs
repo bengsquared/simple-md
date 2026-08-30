@@ -479,13 +479,13 @@ fn write_file(path: String, content: String, expected_mtime: Option<u64>) -> Res
     // so a crash mid-write can never truncate the document.
     let dir = path.parent().ok_or("path has no parent directory")?;
     let mut tmp = dir.join(format!(
-        ".{}.mdmachine-tmp",
+        ".{}.simplemd-tmp",
         path.file_name()
             .and_then(|n| n.to_str())
             .ok_or("path has no file name")?
     ));
     if tmp.exists() {
-        tmp = dir.join(format!(".{}.mdmachine-tmp2", now_secs()));
+        tmp = dir.join(format!(".{}.simplemd-tmp2", now_secs()));
     }
     std::fs::write(&tmp, content).map_err(|e| e.to_string())?;
     std::fs::rename(&tmp, &path).map_err(|e| {
@@ -550,7 +550,7 @@ fn new_window(app: tauri::AppHandle) -> Result<(), String> {
         &label,
         tauri::WebviewUrl::App("index.html".into()),
     )
-    .title("MD Machine")
+    .title("Simple MD")
     .inner_size(1100.0, 820.0)
     .min_inner_size(600.0, 400.0);
     #[cfg(target_os = "macos")]

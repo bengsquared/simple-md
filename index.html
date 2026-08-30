@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MD Machine</title>
+    <title>Simple MD</title>
     <script type="module" src="/src/main.ts" defer></script>
   </head>
 
@@ -133,6 +133,13 @@
           </div>
         </div>
         <div class="ap-row">
+          <label>Numbers</label>
+          <div class="ap-seg" data-pref="headingNumbers">
+            <button data-v="auto">Auto</button>
+            <button data-v="off">Off</button>
+          </div>
+        </div>
+        <div class="ap-row">
           <label>Ornaments</label>
           <div class="ap-seg" data-pref="ornaments">
             <button data-v="auto">Auto</button>
@@ -146,7 +153,7 @@
     <main id="editor-host">
       <div id="editor" lang="en"></div>
       <div id="empty-state">
-        <h1>MD Machine</h1>
+        <h1>Simple MD</h1>
         <p><kbd>⌘P</kbd> to find a file — paste a path or fuzzy-type a name</p>
       </div>
     </main>
