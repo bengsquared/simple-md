@@ -60,8 +60,8 @@ const DEFAULT_PREFS: Prefs = {
 // [column width, side padding]: padding scales with the stop so the fixed
 // chrome doesn't read generous at narrow and tight at wide.
 const WIDTHS: Record<Prefs["width"], [string, string]> = {
-  narrow: ["620px", "40px"],
-  medium: ["760px", "48px"],
+  narrow: ["680px", "44px"], /* ~60-62ch at 18-19px body */
+  medium: ["780px", "48px"], /* ~67-72ch - the Bringhurst band */
   // Wide exceeds the 75ch prose ceiling on purpose: it exists for
   // table- and code-heavy documents where cell measure governs.
   wide: ["980px", "56px"],
