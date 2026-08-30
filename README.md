@@ -48,12 +48,19 @@ Hooks: voices are `#editor[data-voice="standard|novel|paper|magazine"]`; overrid
 Tokens: `--font-sans/-display/-newyork/-book/-charter/-mono`, `--voice-size`, `--voice-lh`, `--indent-depth`, `--content-width`, `--page-pad`, `--editor-zoom`.
 A fifth personal voice is just CSS: style `#editor[data-voice="custom"]`.
 
-## Stack
+## Built on the shoulders of
 
-- Shell: [Tauri 2](https://tauri.app) (Rust core + macOS WKWebView).
-- Editor: [Milkdown Crepe](https://milkdown.dev) (ProseMirror-based, markdown-first WYSIWYG).
-- Diagrams: [mermaid](https://mermaid.js.org).
-- Search: the `ignore` crate (ripgrep's walker) + `nucleo-matcher` (Helix's fuzzy matcher).
+Simple MD is a thin shell around excellent open-source work:
+
+- [Milkdown](https://milkdown.dev) and its [Crepe](https://milkdown.dev/docs/guide/using-crepe) editor by Mirone and contributors - the markdown-first WYSIWYG engine at the heart of the app (MIT).
+- [ProseMirror](https://prosemirror.net) by Marijn Haverbeke - the rich-text toolkit under Milkdown - and [CodeMirror](https://codemirror.net), which powers the code blocks (MIT).
+- [Mermaid](https://mermaid.js.org) for inline diagram rendering (MIT).
+- [Tauri](https://tauri.app) - the Rust + WKWebView shell that keeps the whole app at ~6 MB (MIT/Apache-2.0).
+- The [`ignore`](https://github.com/BurntSushi/ripgrep/tree/master/crates/ignore) crate by Andrew Gallant - ripgrep's gitignore-aware directory walker (MIT/Unlicense).
+- [`nucleo-matcher`](https://github.com/helix-editor/nucleo) from the Helix editor project - the fuzzy matcher behind the palette (MPL-2.0).
+- [`notify`](https://github.com/notify-rs/notify) for filesystem watching, plus [serde](https://serde.rs), [Vite](https://vite.dev), and [TypeScript](https://www.typescriptlang.org).
+- Typefaces are the ones Apple ships with macOS - Iowan Old Style (John Downer), Charter (Matthew Carter), New York, Palatino (Hermann Zapf), SF Pro - used as system fonts, not bundled.
+- Typographic conventions owe much to Robert Bringhurst's *The Elements of Typographic Style* and Matthew Butterick's [*Practical Typography*](https://practicaltypography.com).
 
 ## Develop / build
 
