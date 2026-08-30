@@ -9,9 +9,16 @@ import "./styles.css";
 
 import { backend, IN_TAURI } from "./ipc";
 import { $ } from "./dom";
-import { openFile, saveFile, reloadFromDisk, syncWithDisk } from "./document";
+import {
+  openFile,
+  saveFile,
+  reloadFromDisk,
+  syncWithDisk,
+  newUntitled,
+} from "./document";
 import { openPalette, isPaletteOpen } from "./palette";
-import { initAppearancePanel } from "./prefs";
+import { initAppearancePanel, zoomIn, zoomOut, zoomActual } from "./prefs";
+import { initMenu } from "./menu";
 
 // Load the editor theme matching the system appearance so the editor and
 // the chrome (palette, bars) never disagree on light vs dark.
@@ -26,25 +33,38 @@ for (const [href, media] of [
   document.head.appendChild(link);
 }
 
-document.addEventListener("keydown", (e) => {
-  const mod = e.metaKey || e.ctrlKey;
-  if (!mod) return;
-  if (isPaletteOpen()) return; // the palette owns the keyboard while open
-  const key = e.key.toLowerCase();
-  if (key === "p" || key === "o") {
-    e.preventDefault();
-    openPalette();
-  } else if (key === "s") {
-    e.preventDefault();
-    void saveFile(e.shiftKey); // ⌘⇧S force-saves past a disk conflict
-  } else if (key === "r" && !e.shiftKey) {
-    e.preventDefault();
-    reloadFromDisk();
-  } else if (key === "n") {
-    e.preventDefault();
-    void backend.newWindow();
-  }
-});
+// In Tauri every shortcut is declared on its native menu item (menu.ts
+// dispatches); these DOM handlers exist only for the browser demo.
+if (!IN_TAURI) {
+  document.addEventListener("keydown", (e) => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (!mod) return;
+    if (isPaletteOpen()) return; // the palette owns the keyboard while open
+    const key = e.key.toLowerCase();
+    if (key === "p" || key === "o") {
+      e.preventDefault();
+      openPalette();
+    } else if (key === "s") {
+      e.preventDefault();
+      void saveFile(e.shiftKey);
+    } else if (key === "r" && !e.shiftKey) {
+      e.preventDefault();
+      reloadFromDisk();
+    } else if (key === "n") {
+      e.preventDefault();
+      void backend.newWindow();
+    } else if (key === "=" || key === "+") {
+      e.preventDefault();
+      zoomIn();
+    } else if (key === "-") {
+      e.preventDefault();
+      zoomOut();
+    } else if (key === "0") {
+      e.preventDefault();
+      zoomActual();
+    }
+  });
+}
 
 // The filename/path are click targets (switch file); the rest of the bar
 // is the drag surface, since a drag-region element swallows clicks.
@@ -92,6 +112,7 @@ async function main() {
   initAppearancePanel();
   void loadUserTheme();
   if (IN_TAURI) {
+    await initMenu();
     await listen("open-request", () => void drainOpenRequests());
     await listen<number>("index-ready", (event) => {
       indexStatusEl.textContent = `${event.payload.toLocaleString()} files indexed`;
@@ -101,7 +122,13 @@ async function main() {
     });
   }
 
-  await drainOpenRequests();
+  // Windows spawned by File > New boot straight into an untitled document
+  // (and skip the open queue: this window can't have anything pending).
+  if (new URLSearchParams(location.search).has("untitled")) {
+    await newUntitled();
+  } else {
+    await drainOpenRequests();
+  }
   await refreshIndexStatus();
 }
 

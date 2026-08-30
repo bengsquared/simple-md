@@ -143,6 +143,32 @@ function applyPrefs() {
   });
 }
 
+// Continuous zoom (View menu / ⌘+ ⌘- ⌘0): geometric 10% steps so repeated
+// presses feel even, clamped to a sane reading range. Zoom multiplies the
+// reading font-size while the column width stays put (see styles.css).
+const ZOOM_STEP = 1.1;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 2.5;
+
+function setZoom(value: number) {
+  const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
+  prefs.zoom = String(Math.round(clamped * 1000) / 1000);
+  localStorage.setItem("prefs", JSON.stringify(prefs));
+  applyPrefs();
+}
+
+export function zoomIn() {
+  setZoom((parseFloat(prefs.zoom) || 1) * ZOOM_STEP);
+}
+
+export function zoomOut() {
+  setZoom((parseFloat(prefs.zoom) || 1) / ZOOM_STEP);
+}
+
+export function zoomActual() {
+  setZoom(1);
+}
+
 export function initAppearancePanel() {
   const panel = $("appearance-panel");
   const button = $("btn-appearance");

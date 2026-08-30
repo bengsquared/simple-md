@@ -29,9 +29,20 @@ let baselineMarkdown = "";
 let dirty = false;
 
 function setDirty(value: boolean) {
+  if (dirty !== value) void backend.setWindowDocument(currentPath, value);
   dirty = value;
   dirtyDotEl.hidden = !value;
   saveBtn.disabled = !value;
+}
+
+// Point the titlebar (ours and the native one: title, proxy icon) at the
+// current document. Null path = untitled.
+function setFileChrome(path: string | null) {
+  const name = path ? fileName(path) : "Untitled";
+  fileNameEl.textContent = name;
+  filePathEl.textContent = path ? middleTruncate(tildify(path), 90) : "";
+  if (IN_TAURI) void getCurrentWindow().setTitle(name);
+  void backend.setWindowDocument(path, dirty);
 }
 
 function flashStatus(text: string) {
@@ -99,31 +110,64 @@ async function doOpenFile(path: string) {
     flashStatus(`open failed: ${err}`);
     return;
   }
+  // Only real document switches touch Open Recent: silent reloads and
+  // Revert re-open the same path and must not churn the native menu.
+  if (path !== currentPath) void backend.noteRecentFile(path);
   currentPath = path;
   loadedMtime = file.mtime;
   setDirty(false);
   hideConflict();
   reloadBtn.disabled = false;
-  const name = fileName(path);
-  fileNameEl.textContent = name;
-  filePathEl.textContent = middleTruncate(tildify(path), 90);
-  if (IN_TAURI) void getCurrentWindow().setTitle(name);
+  setFileChrome(path);
 }
 
-async function doSaveFile(force: boolean) {
-  if (!crepe || !currentPath) return;
+// A fresh untitled document (File > New). It has no path until the first
+// save, which routes through the native save panel.
+async function doNewUntitled() {
+  try {
+    await mountEditor("");
+  } catch (err) {
+    flashStatus(`new document failed: ${err}`);
+    return;
+  }
+  currentPath = null;
+  loadedMtime = 0;
+  setDirty(false);
+  hideConflict();
+  reloadBtn.disabled = true;
+  setFileChrome(null);
+}
+
+// `pathOverride` (Save As, untitled first save) writes to a new location.
+// The document's path and chrome only move over AFTER the write succeeds:
+// a failed save must never strand the document pointing at a dead path.
+async function doSaveFile(force: boolean, pathOverride?: string) {
+  if (!crepe) return;
+  let path = pathOverride ?? currentPath;
+  if (!path) {
+    // Untitled: the first save is a Save As through the native panel,
+    // which already confirmed any overwrite.
+    const picked = await backend.pickSavePath("Untitled.md");
+    if (!picked) return;
+    path = picked;
+    force = true;
+  }
   try {
     const markdown = crepe.getMarkdown();
     // The backend compares mtimes and writes atomically in one call, so an
     // agent rewriting the file between check and write cannot be clobbered.
     loadedMtime = await backend.writeFile(
-      currentPath,
+      path,
       markdown,
       force ? undefined : loadedMtime
     );
+    currentPath = path;
     baselineMarkdown = markdown;
     setDirty(false);
     hideConflict();
+    reloadBtn.disabled = false;
+    setFileChrome(path);
+    void backend.noteRecentFile(path);
     flashStatus("saved");
   } catch (err) {
     if (isConflict(err)) {
@@ -170,6 +214,22 @@ export const saveFile = serialized((force: boolean = false) =>
   doSaveFile(force)
 );
 export const syncWithDisk = serialized(doSyncWithDisk);
+export const newUntitled = serialized(doNewUntitled);
+
+// Save As: write to a path picked in the native panel (forced - the panel
+// confirmed any overwrite). doSaveFile adopts the new path only on success.
+export const saveFileAs = serialized(async () => {
+  if (!crepe) return;
+  const picked = await backend.pickSavePath(
+    currentPath ? fileName(currentPath) : "Untitled.md"
+  );
+  if (!picked) return;
+  await doSaveFile(true, picked);
+});
+
+export function hasDocument(): boolean {
+  return crepe !== null;
+}
 
 export function reloadFromDisk() {
   if (currentPath) void openFile(currentPath);

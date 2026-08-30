@@ -49,11 +49,17 @@ const demoBackend: typeof tauriBackend = {
   indexStatus: async () => ({ count: DEMO_FILES.length, indexing: false }),
   refreshIndex: async () => {},
   takePendingOpen: async () => [DEMO_FILES[0]],
-  newWindow: async () => {
-    window.open(location.href);
+  newWindow: async (untitled?: boolean) => {
+    const url = new URL(location.href);
+    if (untitled) url.searchParams.set("untitled", "");
+    window.open(url.toString());
   },
   readThemeCss: async () => null,
   setWindowTheme: async () => {},
+  pickOpenPath: async () => null,
+  pickSavePath: async () => null,
+  noteRecentFile: async () => {},
+  setWindowDocument: async () => {},
 };
 
 const tauriBackend = {
@@ -75,12 +81,22 @@ const tauriBackend = {
   refreshIndex: () => invoke<void>("refresh_index"),
   /** Drains the queue of files macOS asked us to open. */
   takePendingOpen: () => invoke<string[]>("take_pending_open"),
-  /** Opens an additional editor window. */
-  newWindow: () => invoke<void>("new_window"),
+  /** Opens an additional editor window; untitled boots it into a new doc. */
+  newWindow: (untitled?: boolean) => invoke<void>("new_window", { untitled }),
   /** User override stylesheet (app config dir/theme.css), or null. */
   readThemeCss: () => invoke<string | null>("read_theme_css"),
   /** Native window theme: "light" | "dark" | "auto" (follow system). */
   setWindowTheme: (theme: string) => invoke<void>("set_window_theme", { theme }),
+  /** Native open panel; null when cancelled. */
+  pickOpenPath: () => invoke<string | null>("pick_open_path"),
+  /** Native save panel seeded with defaultName; null when cancelled. */
+  pickSavePath: (defaultName?: string) =>
+    invoke<string | null>("pick_save_path", { defaultName }),
+  /** Add a successfully opened file to File > Open Recent. */
+  noteRecentFile: (path: string) => invoke<void>("note_recent_file", { path }),
+  /** Native dirty dot + titlebar proxy icon for this window. */
+  setWindowDocument: (path: string | null, edited: boolean) =>
+    invoke<void>("set_window_document", { path, edited }),
 };
 
 export const backend = IN_TAURI ? tauriBackend : demoBackend;

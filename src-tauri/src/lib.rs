@@ -1,3 +1,5 @@
+mod menu;
+
 use ignore::WalkBuilder;
 use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config, Matcher, Utf32Str};
@@ -30,6 +32,9 @@ struct AppState {
     // clobber live updates. (String path -> still exists?)
     journal: Mutex<Vec<(String, bool)>>,
     pending_open: Mutex<Vec<String>>,
+    // Label of the most recently focused window: deterministic target for
+    // menu events when no window reports focus (e.g. while a panel is up).
+    last_focused: Mutex<Option<String>>,
     // Held so the filesystem watcher lives as long as the app.
     watcher: Mutex<Option<notify::RecommendedWatcher>>,
 }
@@ -537,36 +542,103 @@ fn read_theme_css(app: tauri::AppHandle) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
-/// Open an additional editor window (cmd+N). Each window runs the full app:
-/// its own document, palette, and appearance state.
+/// Open an additional editor window. Each window runs the full app: its own
+/// document, palette, and appearance state. `untitled` boots it straight
+/// into an empty editable document (File > New) instead of the empty state.
 #[tauri::command]
-fn new_window(app: tauri::AppHandle) -> Result<(), String> {
+fn new_window(app: tauri::AppHandle, untitled: Option<bool>) -> Result<(), String> {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static WIN_SEQ: AtomicUsize = AtomicUsize::new(1);
     let label = format!("win-{}", WIN_SEQ.fetch_add(1, Ordering::Relaxed));
+    let url = if untitled.unwrap_or(false) {
+        "index.html?untitled"
+    } else {
+        "index.html"
+    };
     #[allow(unused_mut)]
-    let mut builder = tauri::WebviewWindowBuilder::new(
-        &app,
-        &label,
-        tauri::WebviewUrl::App("index.html".into()),
-    )
-    .title("Simple MD")
-    .inner_size(1100.0, 820.0)
-    .min_inner_size(600.0, 400.0);
+    let mut builder =
+        tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(url.into()))
+            .title("Simple MD")
+            .inner_size(1100.0, 820.0)
+            .min_inner_size(600.0, 400.0);
     #[cfg(target_os = "macos")]
     {
         builder = builder
             .title_bar_style(tauri::TitleBarStyle::Overlay)
-            .hidden_title(true);
+            .hidden_title(true)
+            .tabbing_identifier("simplemd");
     }
     builder.build().map_err(|e| e.to_string())?;
     Ok(())
 }
 
+/// Native open panel. Async command: the blocking dialog runs off the main
+/// thread, so the UI keeps painting while the panel is up.
+#[tauri::command(async)]
+fn pick_open_path(window: tauri::WebviewWindow) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    window
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .add_filter("Documents", INDEXED_EXTS)
+        .blocking_pick_file()
+        .and_then(|f| f.into_path().ok())
+        .map(|p| p.to_string_lossy().to_string())
+}
+
+/// Native save panel; `default_name` seeds the filename field.
+#[tauri::command(async)]
+fn pick_save_path(window: tauri::WebviewWindow, default_name: Option<String>) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    window
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .set_file_name(default_name.unwrap_or_else(|| "Untitled.md".into()))
+        .blocking_save_file()
+        .and_then(|f| f.into_path().ok())
+        .map(|p| p.to_string_lossy().to_string())
+}
+
+/// Add a successfully opened file to the File > Open Recent menu.
+#[tauri::command]
+fn note_recent_file(app: tauri::AppHandle, path: String) {
+    menu::note_recent(&app, path);
+}
+
+/// Reflect the document on the native window: dirty dot on the close button
+/// (documentEdited) and the titlebar proxy icon (representedFilename).
+#[tauri::command]
+#[allow(unused_variables)]
+fn set_window_document(window: tauri::WebviewWindow, path: Option<String>, edited: bool) {
+    #[cfg(target_os = "macos")]
+    {
+        let win = window.clone();
+        let _ = window.run_on_main_thread(move || {
+            if let Ok(ptr) = win.ns_window() {
+                let ns = unsafe { &*(ptr as *const objc2_app_kit::NSWindow) };
+                ns.setDocumentEdited(edited);
+                ns.setRepresentedFilename(&objc2_foundation::NSString::from_str(
+                    path.as_deref().unwrap_or(""),
+                ));
+            }
+        });
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Focused(true) = event {
+                let app = window.app_handle();
+                *lock(&app.state::<AppState>().last_focused) = Some(window.label().to_string());
+            }
+        })
+        .on_menu_event(|app, event| menu::handle_event(app, event))
         .invoke_handler(tauri::generate_handler![
             search_files,
             refresh_index,
@@ -581,8 +653,16 @@ pub fn run() {
             new_window,
             read_theme_css,
             set_window_theme,
+            pick_open_path,
+            pick_save_path,
+            note_recent_file,
+            set_window_document,
         ])
         .setup(|app| {
+            // Built here, not via Builder::menu: the recents submenu reads
+            // recents.json through the path resolver, which does not exist
+            // yet when the Builder menu closure runs.
+            app.set_menu(menu::build_menu(app.handle())?)?;
             init_index(app.handle().clone());
             Ok(())
         })
