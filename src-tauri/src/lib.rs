@@ -515,6 +515,14 @@ fn take_pending_open(state: State<AppState>) -> Vec<String> {
     std::mem::take(&mut *lock(&state.pending_open))
 }
 
+/// User override stylesheet, loaded after the built-in voice rules.
+/// Lives beside roots.json; absent file means no overrides.
+#[tauri::command]
+fn read_theme_css(app: tauri::AppHandle) -> Option<String> {
+    let path = app.path().app_config_dir().ok()?.join("theme.css");
+    std::fs::read_to_string(path).ok()
+}
+
 /// Open an additional editor window (cmd+N). Each window runs the full app:
 /// its own document, palette, and appearance state.
 #[tauri::command]
@@ -558,6 +566,7 @@ pub fn run() {
             path_exists,
             take_pending_open,
             new_window,
+            read_theme_css,
         ])
         .setup(|app| {
             init_index(app.handle().clone());

@@ -43,3 +43,11 @@ pnpm tauri build    # produce .app / .dmg in src-tauri/target/release/bundle
 ## License
 
 MIT - see [LICENSE](LICENSE).
+
+## Custom typography
+
+The Aa panel covers the common controls (voice presets plus Basic and Advanced overrides).
+For unlimited depth, drop a `theme.css` beside `roots.json` in `~/Library/Application Support/co.useenso.mdmachine/` - it loads after the built-in styles.
+Hooks: voices are `#editor[data-voice="standard|novel|paper|magazine"]`, override attributes are `data-font`, `data-headings`, `data-heading-case`, `data-heading-align`, `data-section-break`, `data-ornaments`, `data-paragraph`, `data-justify`, `data-density`.
+Tokens: `--font-sans/-display/-newyork/-book/-charter/-mono`, `--voice-size`, `--voice-lh`, `--indent-depth`, `--content-width`, `--editor-zoom`.
+A fifth personal voice is just CSS: style `#editor[data-voice="custom"]` and set the attribute from devtools, or ask for a picker button.

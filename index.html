@@ -38,7 +38,6 @@
           <button data-v="magazine">Magazine</button>
         </div>
       </div>
-      <div class="ap-section">Type</div>
       <div class="ap-row">
         <label>Font</label>
         <div class="ap-seg" data-pref="font">
@@ -58,30 +57,6 @@
           <button data-v="sans">Sans</button>
         </div>
       </div>
-      <div class="ap-section">Layout</div>
-      <div class="ap-row">
-        <label>Paragraphs</label>
-        <div class="ap-seg" data-pref="paragraph">
-          <button data-v="flowing">Flowing</button>
-          <button data-v="indented">Indented</button>
-        </div>
-      </div>
-      <div class="ap-row">
-        <label>Alignment</label>
-        <div class="ap-seg" data-pref="justify">
-          <button data-v="ragged">Ragged</button>
-          <button data-v="justified">Justified</button>
-        </div>
-      </div>
-      <div class="ap-row">
-        <label>Density</label>
-        <div class="ap-seg" data-pref="density">
-          <button data-v="compact">Compact</button>
-          <button data-v="standard">Standard</button>
-          <button data-v="relaxed">Relaxed</button>
-        </div>
-      </div>
-      <div class="ap-section">Page</div>
       <div class="ap-row">
         <label>Width</label>
         <div class="ap-seg" data-pref="width">
@@ -100,6 +75,64 @@
           <button data-v="1.25">125%</button>
         </div>
       </div>
+      <details id="ap-advanced">
+        <summary>Advanced</summary>
+        <div class="ap-row">
+          <label>Heading case</label>
+          <div class="ap-seg" data-pref="headingCase">
+            <button data-v="auto">Auto</button>
+            <button data-v="normal">Normal</button>
+            <button data-v="smallcaps">Small caps</button>
+          </div>
+        </div>
+        <div class="ap-row">
+          <label>Heading align</label>
+          <div class="ap-seg" data-pref="headingAlign">
+            <button data-v="auto">Auto</button>
+            <button data-v="left">Left</button>
+            <button data-v="center">Center</button>
+          </div>
+        </div>
+        <div class="ap-row">
+          <label>Paragraphs</label>
+          <div class="ap-seg" data-pref="paragraph">
+            <button data-v="flowing">Flowing</button>
+            <button data-v="indented">Indented</button>
+          </div>
+        </div>
+        <div class="ap-row">
+          <label>Alignment</label>
+          <div class="ap-seg" data-pref="justify">
+            <button data-v="ragged">Ragged</button>
+            <button data-v="justified">Justified</button>
+          </div>
+        </div>
+        <div class="ap-row">
+          <label>Density</label>
+          <div class="ap-seg" data-pref="density">
+            <button data-v="compact">Compact</button>
+            <button data-v="standard">Standard</button>
+            <button data-v="relaxed">Relaxed</button>
+          </div>
+        </div>
+        <div class="ap-row">
+          <label>Break (---)</label>
+          <div class="ap-seg" data-pref="sectionBreak">
+            <button data-v="auto">Auto</button>
+            <button data-v="line">Line</button>
+            <button data-v="dinkus">* * *</button>
+            <button data-v="fleuron">❦</button>
+          </div>
+        </div>
+        <div class="ap-row">
+          <label>Ornaments</label>
+          <div class="ap-seg" data-pref="ornaments">
+            <button data-v="auto">Auto</button>
+            <button data-v="on">On</button>
+            <button data-v="off">Off</button>
+          </div>
+        </div>
+      </details>
     </div>
 
     <main id="editor-host">

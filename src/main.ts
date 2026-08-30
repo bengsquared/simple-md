@@ -77,8 +77,20 @@ async function drainOpenRequests() {
   if (last) await openFile(last);
 }
 
+// User theme.css: unlimited typography depth without more panel rows.
+async function loadUserTheme() {
+  const css = await backend.readThemeCss();
+  if (css) {
+    const style = document.createElement("style");
+    style.id = "user-theme";
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+}
+
 async function main() {
   initAppearancePanel();
+  void loadUserTheme();
   if (IN_TAURI) {
     await listen("open-request", () => void drainOpenRequests());
     await listen<number>("index-ready", (event) => {

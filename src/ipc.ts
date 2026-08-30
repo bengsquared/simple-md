@@ -52,6 +52,7 @@ const demoBackend: typeof tauriBackend = {
   newWindow: async () => {
     window.open(location.href);
   },
+  readThemeCss: async () => null,
 };
 
 const tauriBackend = {
@@ -75,6 +76,8 @@ const tauriBackend = {
   takePendingOpen: () => invoke<string[]>("take_pending_open"),
   /** Opens an additional editor window. */
   newWindow: () => invoke<void>("new_window"),
+  /** User override stylesheet (app config dir/theme.css), or null. */
+  readThemeCss: () => invoke<string | null>("read_theme_css"),
 };
 
 export const backend = IN_TAURI ? tauriBackend : demoBackend;

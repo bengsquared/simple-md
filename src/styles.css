@@ -199,6 +199,28 @@ body {
   margin-top: 4px;
 }
 
+#ap-advanced {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 2px;
+}
+
+#ap-advanced summary {
+  font-size: 11.5px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 8px;
+}
+
+#ap-advanced summary:hover {
+  color: var(--fg);
+}
+
+#ap-advanced .ap-row {
+  margin-bottom: 8px;
+}
+
 .ap-seg {
   display: flex;
   border: 1px solid var(--border);
@@ -238,7 +260,6 @@ body {
   max-width: var(--content-width, 860px);
   margin: 0 auto;
   padding: 24px 48px 40vh;
-  zoom: var(--editor-zoom, 1);
 }
 
 :root {
@@ -268,14 +289,16 @@ body {
   --crepe-font-default: var(--font-body-override, var(--voice-font-body, var(--font-sans)));
   --crepe-font-title: var(--font-heading-override, var(--voice-font-heading, var(--font-newyork)));
   --crepe-font-code: var(--font-mono);
-  font-size: var(--voice-size, 17.5px);
+  /* Zoom scales reading size, not layout: CSS `zoom` distorts hit-testing
+     and scroll math in WKWebView, so it multiplies font-size instead. */
+  font-size: calc(var(--voice-size, 17.5px) * var(--editor-zoom, 1));
   line-height: var(--lh-override, var(--voice-lh, 1.55));
 }
 
 /* ---------- Layout axis ---------- */
 
 #editor[data-paragraph="indented"] .milkdown p {
-  text-indent: 1.4em;
+  text-indent: var(--indent-depth, 1.4em);
   margin: 0;
   padding: 0;
 }
@@ -339,6 +362,16 @@ body {
   margin: 1.8em 0 0.8em;
 }
 
+#editor[data-voice="novel"] .milkdown h1::after {
+  content: "❦";
+  display: block;
+  font-size: 0.55em;
+  font-weight: 400;
+  letter-spacing: 0;
+  margin-top: 0.55em;
+  color: color-mix(in srgb, var(--fg) 70%, transparent);
+}
+
 #editor[data-voice="novel"] .milkdown h2 {
   text-align: center;
   font-variant-caps: small-caps;
@@ -375,9 +408,9 @@ body {
 
 #editor[data-voice="novel"] .milkdown hr::before {
   content: "* * *";
-  letter-spacing: 0.6em;
-  color: color-mix(in srgb, var(--fg) 55%, transparent);
-  font-size: 0.9em;
+  letter-spacing: 0.7em;
+  color: color-mix(in srgb, var(--fg) 80%, transparent);
+  font-size: 1.15em;
 }
 
 #editor[data-voice="novel"] .milkdown blockquote {
@@ -521,6 +554,81 @@ body {
   height: auto;
   border-top: 1px solid var(--border);
   margin: 3em 0;
+}
+
+/* ---------- Advanced overrides ----------
+   Property-based overrides of voice decisions ("auto" emits no matching
+   attribute value, so the voice rule wins). These share specificity with
+   the voice rules, so they MUST stay after the voice blocks. */
+
+#editor[data-heading-case="normal"] .milkdown :is(h1, h2, h3, h4, h5, h6) {
+  font-variant-caps: normal;
+  letter-spacing: normal;
+}
+
+#editor[data-heading-case="smallcaps"] .milkdown :is(h1, h2) {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.06em;
+}
+
+#editor[data-heading-align="left"] .milkdown :is(h1, h2, h3) {
+  text-align: left;
+}
+
+#editor[data-heading-align="center"] .milkdown :is(h1, h2, h3) {
+  text-align: center;
+}
+
+#editor[data-section-break="line"] .milkdown hr {
+  border: none;
+  background: none;
+  height: auto;
+  border-top: 1px solid var(--border);
+  width: 100%;
+  margin: 2.4em 0;
+}
+
+#editor[data-section-break="line"] .milkdown hr::before {
+  content: none;
+}
+
+#editor[data-section-break="dinkus"] .milkdown hr,
+#editor[data-section-break="fleuron"] .milkdown hr {
+  border: none;
+  background: none;
+  height: auto;
+  width: auto;
+  text-align: center;
+  margin: 1.6em 0;
+}
+
+#editor[data-section-break="dinkus"] .milkdown hr::before {
+  content: "* * *";
+  letter-spacing: 0.7em;
+  color: color-mix(in srgb, var(--fg) 80%, transparent);
+  font-size: 1.15em;
+}
+
+#editor[data-section-break="fleuron"] .milkdown hr::before {
+  content: "❦";
+  letter-spacing: 0;
+  color: color-mix(in srgb, var(--fg) 80%, transparent);
+  font-size: 1.1em;
+}
+
+/* Chapter ornament under h1: on forces it in any voice, off removes it. */
+#editor[data-ornaments="on"] .milkdown h1::after {
+  content: "❦";
+  display: block;
+  font-size: 0.55em;
+  font-weight: 400;
+  letter-spacing: 0;
+  margin-top: 0.55em;
+  color: color-mix(in srgb, var(--fg) 70%, transparent);
+}
+
+#editor[data-ornaments="off"] .milkdown h1::after {
+  content: none;
 }
 
 /* ---------- Shared voice corrections ---------- */
