@@ -12,7 +12,7 @@ interface Prefs {
   voice: Voice;
   // Overrides on top of the voice ("auto" = voice default).
   font: "auto" | "book" | "charter" | "newyork" | "sans" | "mono";
-  headings: "auto" | "serif" | "sans";
+  headings: "auto" | "book" | "charter" | "newyork" | "sans" | "mono";
   headingCase: "auto" | "normal" | "smallcaps";
   headingAlign: "auto" | "left" | "center";
   sectionBreak: "auto" | "line" | "dinkus" | "fleuron";
@@ -83,6 +83,7 @@ function loadPrefs(): Prefs {
   try {
     const stored = JSON.parse(localStorage.getItem("prefs") ?? "{}");
     // Migrate pre-split records: `preset` becomes voice + its layout.
+    if (stored.headings === "serif") stored.headings = "newyork";
     if (typeof stored.preset === "string" && !stored.voice) {
       stored.voice = stored.preset;
       Object.assign(stored, VOICE_LAYOUTS[stored.preset as Voice] ?? {});
@@ -91,7 +92,11 @@ function loadPrefs(): Prefs {
       appearance: pick(stored, "appearance", ["auto", "light", "dark"]),
       voice: pick(stored, "voice", ["standard", "novel", "paper", "magazine"]),
       font: pick(stored, "font", ["auto", "book", "charter", "newyork", "sans", "mono"]),
-      headings: pick(stored, "headings", ["auto", "serif", "sans"]),
+      headings: pick(
+        stored,
+        "headings",
+        ["auto", "book", "charter", "newyork", "sans", "mono"],
+      ),
       headingCase: pick(stored, "headingCase", ["auto", "normal", "smallcaps"]),
       headingAlign: pick(stored, "headingAlign", ["auto", "left", "center"]),
       sectionBreak: pick(stored, "sectionBreak", ["auto", "line", "dinkus", "fleuron"]),

@@ -261,7 +261,14 @@ body {
      constant: zoom is page magnification, not a measure change. */
   max-width: min(calc(var(--content-width, 760px) * var(--editor-zoom, 1)), 100%);
   margin: 0 auto;
-  padding: 24px var(--page-pad, 48px) 40vh;
+  /* Gutters yield before content does: clamp to near-zero on narrow windows. */
+  padding: 16px clamp(4px, 2vw, 16px) 40vh;
+}
+
+/* Crepe hardcodes 60px 120px here - 240px of fixed horizontal chrome that
+   crushes content on narrow windows. Make it responsive instead. */
+#editor .milkdown .ProseMirror {
+  padding: 8px clamp(8px, 3vw, var(--page-pad, 40px)) 24px;
 }
 
 :root {
@@ -348,8 +355,12 @@ body {
 #editor[data-font="sans"]    { --font-body-override: var(--font-sans); }
 #editor[data-font="mono"]    { --font-body-override: var(--font-mono); }
 
-#editor[data-headings="serif"] { --font-heading-override: var(--font-newyork); }
-#editor[data-headings="sans"]  { --font-heading-override: var(--font-display); }
+#editor[data-headings="book"]    { --font-heading-override: var(--font-book); }
+#editor[data-headings="charter"] { --font-heading-override: var(--font-charter); }
+#editor[data-headings="newyork"] { --font-heading-override: var(--font-newyork); }
+#editor[data-headings="serif"]   { --font-heading-override: var(--font-newyork); } /* legacy stored value */
+#editor[data-headings="sans"]    { --font-heading-override: var(--font-display); }
+#editor[data-headings="mono"]    { --font-heading-override: var(--font-mono); }
 
 /* ---------- Voice: Standard - screen-native manuscript ---------- */
 
