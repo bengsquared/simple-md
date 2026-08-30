@@ -40,4 +40,6 @@ export const backend = {
   refreshIndex: () => invoke<void>("refresh_index"),
   /** Drains the queue of files macOS asked us to open. */
   takePendingOpen: () => invoke<string[]>("take_pending_open"),
+  /** Opens an additional editor window. */
+  newWindow: () => invoke<void>("new_window"),
 };

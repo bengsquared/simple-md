@@ -58,6 +58,16 @@ body {
 #file-name {
   font-weight: 600;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+#file-name:hover,
+#file-path:hover {
+  color: var(--accent);
+}
+
+#file-path {
+  cursor: pointer;
 }
 
 #dirty-dot {
@@ -358,6 +368,10 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: "SF Mono", ui-monospace, Menlo, monospace;
+}
+
+#palette-results .r-create .r-name {
+  color: var(--accent);
 }
 
 #palette-results .r-empty {

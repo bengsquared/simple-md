@@ -40,8 +40,16 @@ document.addEventListener("keydown", (e) => {
   } else if (key === "r" && !e.shiftKey) {
     e.preventDefault();
     reloadFromDisk();
+  } else if (key === "n") {
+    e.preventDefault();
+    void backend.newWindow();
   }
 });
+
+// The filename/path are click targets (switch file); the rest of the bar
+// is the drag surface, since a drag-region element swallows clicks.
+$("file-name").addEventListener("click", openPalette);
+$("file-path").addEventListener("click", openPalette);
 
 const indexStatusEl = $("index-status");
 

@@ -515,6 +515,33 @@ fn take_pending_open(state: State<AppState>) -> Vec<String> {
     std::mem::take(&mut *lock(&state.pending_open))
 }
 
+/// Open an additional editor window (cmd+N). Each window runs the full app:
+/// its own document, palette, and appearance state.
+#[tauri::command]
+fn new_window(app: tauri::AppHandle) -> Result<(), String> {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static WIN_SEQ: AtomicUsize = AtomicUsize::new(1);
+    let label = format!("win-{}", WIN_SEQ.fetch_add(1, Ordering::Relaxed));
+    #[allow(unused_mut)]
+    let mut builder = tauri::WebviewWindowBuilder::new(
+        &app,
+        &label,
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title("MD Machine")
+    .inner_size(1100.0, 820.0)
+    .min_inner_size(600.0, 400.0);
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder
+            .title_bar_style(tauri::TitleBarStyle::Overlay)
+            .hidden_title(true)
+            .traffic_light_position(tauri::LogicalPosition::new(16.0, 14.0));
+    }
+    builder.build().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -530,6 +557,7 @@ pub fn run() {
             stat_mtime,
             path_exists,
             take_pending_open,
+            new_window,
         ])
         .setup(|app| {
             init_index(app.handle().clone());
@@ -557,7 +585,7 @@ pub fn run() {
                 let state = app.state::<AppState>();
                 lock(&state.pending_open).extend(paths);
                 let _ = app.emit("open-request", ());
-                if let Some(win) = app.get_webview_window("main") {
+                if let Some(win) = app.webview_windows().values().next() {
                     let _ = win.set_focus();
                 }
             }
