@@ -7,7 +7,7 @@ import frameLight from "@milkdown/crepe/theme/frame.css?url";
 import frameDark from "@milkdown/crepe/theme/frame-dark.css?url";
 import "./styles.css";
 
-import { backend } from "./ipc";
+import { backend, IN_TAURI } from "./ipc";
 import { $ } from "./dom";
 import { openFile, saveFile, reloadFromDisk, syncWithDisk } from "./document";
 import { openPalette, isPaletteOpen } from "./palette";
@@ -79,13 +79,15 @@ async function drainOpenRequests() {
 
 async function main() {
   initAppearancePanel();
-  await listen("open-request", () => void drainOpenRequests());
-  await listen<number>("index-ready", (event) => {
-    indexStatusEl.textContent = `${event.payload.toLocaleString()} files indexed`;
-  });
-  void getCurrentWindow().onFocusChanged(({ payload: focused }) => {
-    if (focused) void syncWithDisk();
-  });
+  if (IN_TAURI) {
+    await listen("open-request", () => void drainOpenRequests());
+    await listen<number>("index-ready", (event) => {
+      indexStatusEl.textContent = `${event.payload.toLocaleString()} files indexed`;
+    });
+    void getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (focused) void syncWithDisk();
+    });
+  }
 
   await drainOpenRequests();
   await refreshIndexStatus();

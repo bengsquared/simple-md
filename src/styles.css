@@ -187,6 +187,16 @@ body {
   color: var(--muted);
 }
 
+.ap-section {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 3px;
+  margin-top: 4px;
+}
+
 .ap-seg {
   display: flex;
   border: 1px solid var(--border);
@@ -219,6 +229,7 @@ body {
   position: absolute;
   inset: var(--titlebar-h) 0 var(--statusbar-h) 0;
   overflow-y: auto;
+  background: var(--bg);
 }
 
 #editor {
@@ -238,12 +249,44 @@ body {
 }
 
 /* =========================================================
-   Rendering presets. Each maps the same markdown onto a
-   different typographic tradition; the source never changes.
+   Rendering: two independent axes.
+   VOICE (data-voice) - typographic character: fonts, headings,
+   blockquote/hr treatment, tables. A curated set, not knobs.
+   LAYOUT (data-paragraph / data-justify / data-density) - page
+   mechanics any voice can wear. Picking a voice writes layout
+   defaults (prefs.ts) which the user can then override.
    ========================================================= */
 
-/* ---- Standard: screen-native manuscript ---- */
-#editor[data-preset="standard"] .milkdown {
+/* ---------- Layout axis ---------- */
+
+#editor[data-paragraph="indented"] .milkdown p {
+  text-indent: 1.4em;
+  margin: 0;
+  padding: 0;
+}
+
+/* Book rule: no indent on the first paragraph or after any break. */
+#editor[data-paragraph="indented"] .milkdown :is(h1, h2, h3, h4, h5, h6, hr) + p,
+#editor[data-paragraph="indented"] .milkdown p:first-child {
+  text-indent: 0;
+}
+
+#editor[data-justify="justified"] .milkdown p {
+  text-align: justify;
+  hyphens: auto; /* justification without hyphenation makes rivers */
+}
+
+#editor[data-density="compact"] .milkdown {
+  line-height: 1.38;
+}
+
+#editor[data-density="relaxed"] .milkdown {
+  line-height: 1.72;
+}
+
+/* ---------- Voice: Standard - screen-native manuscript ---------- */
+
+#editor[data-voice="standard"] .milkdown {
   --crepe-font-title: var(--font-newyork);
   --crepe-font-default: var(--font-sans);
   --crepe-font-code: var(--font-mono);
@@ -251,75 +294,49 @@ body {
   line-height: 1.55;
 }
 
-/* ---- Novel: trade-fiction book page ---- */
-#editor[data-preset="novel"] .milkdown {
+/* ---------- Voice: Novel - trade-fiction book page ---------- */
+
+#editor[data-voice="novel"] .milkdown {
   --crepe-font-title: var(--font-book);
   --crepe-font-default: var(--font-book);
   --crepe-font-code: var(--font-mono);
   font-size: 19px;
   line-height: 1.5;
-  counter-reset: chapter;
 }
 
-#editor[data-preset="novel"] .milkdown p {
-  text-align: justify;
-  hyphens: auto;
-  text-indent: 1.4em;
-  margin: 0;
-}
-
-#editor[data-preset="novel"] .milkdown h1 + p,
-#editor[data-preset="novel"] .milkdown h2 + p,
-#editor[data-preset="novel"] .milkdown h3 + p,
-#editor[data-preset="novel"] .milkdown hr + p,
-#editor[data-preset="novel"] .milkdown p:first-child {
-  text-indent: 0;
-}
-
-#editor[data-preset="novel"] .milkdown h1 {
-  counter-increment: chapter;
+#editor[data-voice="novel"] .milkdown h1 {
   text-align: center;
   font-variant-caps: small-caps;
   font-weight: 600;
   letter-spacing: 0.06em;
-  margin-top: 2.2em;
+  font-size: 1.5em;
+  margin-top: 1.8em;
 }
 
-#editor[data-preset="novel"] .milkdown h1::before {
-  content: "Chapter " counter(chapter, upper-roman);
-  display: block;
-  font-size: 0.45em;
-  font-weight: 400;
-  letter-spacing: 0.2em;
-  margin-bottom: 0.6em;
-  color: color-mix(in srgb, currentColor 60%, transparent);
-}
-
-#editor[data-preset="novel"] .milkdown h1::after {
-  content: "❦";
-  display: block;
-  font-size: 0.4em;
-  font-weight: 400;
-  margin-top: 0.7em;
-  letter-spacing: 0;
-}
-
-#editor[data-preset="novel"] .milkdown h2 {
+#editor[data-voice="novel"] .milkdown h2 {
   text-align: center;
   font-variant-caps: small-caps;
   font-weight: 600;
   letter-spacing: 0.08em;
-  font-size: 1.25em;
+  font-size: 1.2em;
 }
 
-#editor[data-preset="novel"] .milkdown h3 {
+#editor[data-voice="novel"] .milkdown h3 {
   text-align: center;
   font-style: italic;
   font-weight: 400;
-  font-size: 1.1em;
+  font-size: 1.05em;
 }
 
-#editor[data-preset="novel"] .milkdown hr {
+#editor[data-voice="novel"] .milkdown h4,
+#editor[data-voice="novel"] .milkdown h5,
+#editor[data-voice="novel"] .milkdown h6 {
+  font-variant-caps: small-caps;
+  font-weight: 600;
+  font-size: 1em;
+}
+
+#editor[data-voice="novel"] .milkdown hr {
   border: none;
   background: none;
   height: auto;
@@ -327,23 +344,24 @@ body {
   margin: 1.6em 0;
 }
 
-#editor[data-preset="novel"] .milkdown hr::before {
+#editor[data-voice="novel"] .milkdown hr::before {
   content: "* * *";
   letter-spacing: 0.6em;
   color: color-mix(in srgb, var(--fg) 55%, transparent);
   font-size: 0.9em;
 }
 
-#editor[data-preset="novel"] .milkdown blockquote {
+#editor[data-voice="novel"] .milkdown blockquote {
   border: none;
   background: none;
   margin: 1em 2.2em;
   padding: 0;
-  font-size: 0.92em;
+  font-size: 0.94em;
 }
 
-/* ---- Paper: LaTeX article manners ---- */
-#editor[data-preset="paper"] .milkdown {
+/* ---------- Voice: Paper - LaTeX article manners ---------- */
+
+#editor[data-voice="paper"] .milkdown {
   --crepe-font-title: var(--font-charter);
   --crepe-font-default: var(--font-charter);
   --crepe-font-code: var(--font-mono);
@@ -352,50 +370,52 @@ body {
   counter-reset: sec subsec;
 }
 
-#editor[data-preset="paper"] .milkdown p {
-  text-align: justify;
-  hyphens: auto;
-}
-
-#editor[data-preset="paper"] .milkdown h1 {
+#editor[data-voice="paper"] .milkdown h1 {
   text-align: center;
   font-weight: 400;
   font-size: 1.65em;
   margin-bottom: 0.8em;
 }
 
-#editor[data-preset="paper"] .milkdown h2 {
+#editor[data-voice="paper"] .milkdown h2 {
   counter-increment: sec;
   counter-reset: subsec;
   font-weight: 600;
   font-size: 1.25em;
 }
 
-#editor[data-preset="paper"] .milkdown h2::before {
+#editor[data-voice="paper"] .milkdown h2::before {
   content: counter(sec) "\2002";
 }
 
-#editor[data-preset="paper"] .milkdown h3 {
+#editor[data-voice="paper"] .milkdown h3 {
   counter-increment: subsec;
   font-weight: 600;
   font-style: italic;
   font-size: 1.05em;
 }
 
-#editor[data-preset="paper"] .milkdown h3::before {
+#editor[data-voice="paper"] .milkdown h3::before {
   content: counter(sec) "." counter(subsec) "\2002";
   font-style: normal;
 }
 
-#editor[data-preset="paper"] .milkdown blockquote {
+#editor[data-voice="paper"] .milkdown h4,
+#editor[data-voice="paper"] .milkdown h5,
+#editor[data-voice="paper"] .milkdown h6 {
+  font-weight: 600;
+  font-style: italic;
+  font-size: 1em;
+}
+
+#editor[data-voice="paper"] .milkdown blockquote {
   border: none;
   background: none;
   margin: 1em 2em;
   padding: 0;
-  font-size: 0.92em;
 }
 
-#editor[data-preset="paper"] .milkdown hr {
+#editor[data-voice="paper"] .milkdown hr {
   border: none;
   background: none;
   height: auto;
@@ -404,8 +424,9 @@ body {
   margin: 2em auto;
 }
 
-/* ---- Magazine: feature spread ---- */
-#editor[data-preset="magazine"] .milkdown {
+/* ---------- Voice: Magazine - feature spread ---------- */
+
+#editor[data-voice="magazine"] .milkdown {
   --crepe-font-title: var(--font-display);
   --crepe-font-default: var(--font-sans);
   --crepe-font-code: var(--font-mono);
@@ -413,30 +434,38 @@ body {
   line-height: 1.5;
 }
 
-#editor[data-preset="magazine"] .milkdown h1 {
+#editor[data-voice="magazine"] .milkdown h1 {
   font-weight: 800;
   font-size: 2.6em;
   line-height: 1.05;
   letter-spacing: -0.015em;
 }
 
-#editor[data-preset="magazine"] .milkdown h1 + p {
+/* Standfirst: only the paragraph after the document-opening h1. */
+#editor[data-voice="magazine"] .milkdown .ProseMirror > h1:first-child + p {
   font-size: 1.2em;
   line-height: 1.4;
   color: color-mix(in srgb, var(--fg) 62%, transparent);
 }
 
-#editor[data-preset="magazine"] .milkdown h2 {
+#editor[data-voice="magazine"] .milkdown h2 {
   font-weight: 700;
   font-size: 1.4em;
 }
 
-#editor[data-preset="magazine"] .milkdown h3 {
+#editor[data-voice="magazine"] .milkdown h3 {
   font-weight: 700;
   font-size: 1.15em;
 }
 
-#editor[data-preset="magazine"] .milkdown blockquote {
+#editor[data-voice="magazine"] .milkdown h4,
+#editor[data-voice="magazine"] .milkdown h5,
+#editor[data-voice="magazine"] .milkdown h6 {
+  font-weight: 700;
+  font-size: 1em;
+}
+
+#editor[data-voice="magazine"] .milkdown blockquote {
   border: none;
   background: none;
   border-top: 2px solid var(--fg);
@@ -449,12 +478,53 @@ body {
   line-height: 1.35;
 }
 
-#editor[data-preset="magazine"] .milkdown hr {
+#editor[data-voice="magazine"] .milkdown hr {
   border: none;
   background: none;
   height: auto;
   border-top: 1px solid var(--border);
   margin: 3em 0;
+}
+
+/* ---------- Shared voice corrections ---------- */
+
+/* Crepe draws its own 4px accent bar on blockquotes via ::before;
+   the book/paper/magazine quote treatments replace it entirely. */
+#editor[data-voice="novel"] .milkdown blockquote::before,
+#editor[data-voice="paper"] .milkdown blockquote::before,
+#editor[data-voice="magazine"] .milkdown blockquote::before {
+  content: none;
+}
+
+/* Booktabs tables for the print voices: horizontal rules only. */
+#editor[data-voice="novel"] .milkdown :is(th, td),
+#editor[data-voice="paper"] .milkdown :is(th, td) {
+  border-left: none;
+  border-right: none;
+}
+
+#editor[data-voice="novel"] .milkdown th,
+#editor[data-voice="paper"] .milkdown th {
+  border-bottom: 1.5px solid var(--fg);
+}
+
+/* The ID-scoped overrides above outrank Crepe's selected-node rule;
+   restore visible selection feedback on restyled hr and blockquote. */
+#editor .milkdown hr.ProseMirror-selectednode,
+#editor .milkdown blockquote.ProseMirror-selectednode {
+  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 2px;
+}
+
+/* Dark mode: heavy serif and display weights bloom on dark grounds. */
+@media (prefers-color-scheme: dark) {
+  #editor[data-voice="novel"] .milkdown h1,
+  #editor[data-voice="novel"] .milkdown h2 {
+    font-weight: 500;
+  }
+  #editor[data-voice="magazine"] .milkdown h1 {
+    font-weight: 700;
+  }
 }
 
 #empty-state {

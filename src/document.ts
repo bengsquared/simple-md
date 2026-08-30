@@ -4,7 +4,7 @@
 // reloadFromDisk, syncWithDisk - the mtime/baseline bookkeeping stays here.
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Crepe } from "@milkdown/crepe";
-import { backend, isConflict } from "./ipc";
+import { backend, isConflict, IN_TAURI } from "./ipc";
 import { $ } from "./dom";
 import { tildify, middleTruncate, fileName } from "./paths";
 import { renderMermaidPreview } from "./mermaid-preview";
@@ -107,7 +107,7 @@ async function doOpenFile(path: string) {
   const name = fileName(path);
   fileNameEl.textContent = name;
   filePathEl.textContent = middleTruncate(tildify(path), 90);
-  void getCurrentWindow().setTitle(name);
+  if (IN_TAURI) void getCurrentWindow().setTitle(name);
 }
 
 async function doSaveFile(force: boolean) {
