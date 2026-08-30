@@ -230,19 +230,231 @@ body {
 
 :root {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-  --font-serif: "New York", "Iowan Old Style", Georgia, serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+  --font-newyork: "New York", "Iowan Old Style", Georgia, serif;
+  --font-book: "Iowan Old Style", Palatino, Georgia, serif;
+  --font-charter: "Charter", "Iowan Old Style", Georgia, serif;
   --font-mono: "SF Mono", ui-monospace, Menlo, monospace;
 }
 
-#editor .milkdown {
-  --crepe-font-title: var(--editor-heading-font, var(--font-serif));
-  --crepe-font-default: var(--editor-body-font, var(--font-sans));
+/* =========================================================
+   Rendering presets. Each maps the same markdown onto a
+   different typographic tradition; the source never changes.
+   ========================================================= */
+
+/* ---- Standard: screen-native manuscript ---- */
+#editor[data-preset="standard"] .milkdown {
+  --crepe-font-title: var(--font-newyork);
+  --crepe-font-default: var(--font-sans);
   --crepe-font-code: var(--font-mono);
+  font-size: 17.5px;
+  line-height: 1.55;
 }
 
-#editor.centered-titles .milkdown h1,
-#editor.centered-titles .milkdown h2 {
+/* ---- Novel: trade-fiction book page ---- */
+#editor[data-preset="novel"] .milkdown {
+  --crepe-font-title: var(--font-book);
+  --crepe-font-default: var(--font-book);
+  --crepe-font-code: var(--font-mono);
+  font-size: 19px;
+  line-height: 1.5;
+  counter-reset: chapter;
+}
+
+#editor[data-preset="novel"] .milkdown p {
+  text-align: justify;
+  hyphens: auto;
+  text-indent: 1.4em;
+  margin: 0;
+}
+
+#editor[data-preset="novel"] .milkdown h1 + p,
+#editor[data-preset="novel"] .milkdown h2 + p,
+#editor[data-preset="novel"] .milkdown h3 + p,
+#editor[data-preset="novel"] .milkdown hr + p,
+#editor[data-preset="novel"] .milkdown p:first-child {
+  text-indent: 0;
+}
+
+#editor[data-preset="novel"] .milkdown h1 {
+  counter-increment: chapter;
   text-align: center;
+  font-variant-caps: small-caps;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  margin-top: 2.2em;
+}
+
+#editor[data-preset="novel"] .milkdown h1::before {
+  content: "Chapter " counter(chapter, upper-roman);
+  display: block;
+  font-size: 0.45em;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  margin-bottom: 0.6em;
+  color: color-mix(in srgb, currentColor 60%, transparent);
+}
+
+#editor[data-preset="novel"] .milkdown h1::after {
+  content: "❦";
+  display: block;
+  font-size: 0.4em;
+  font-weight: 400;
+  margin-top: 0.7em;
+  letter-spacing: 0;
+}
+
+#editor[data-preset="novel"] .milkdown h2 {
+  text-align: center;
+  font-variant-caps: small-caps;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-size: 1.25em;
+}
+
+#editor[data-preset="novel"] .milkdown h3 {
+  text-align: center;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.1em;
+}
+
+#editor[data-preset="novel"] .milkdown hr {
+  border: none;
+  background: none;
+  height: auto;
+  text-align: center;
+  margin: 1.6em 0;
+}
+
+#editor[data-preset="novel"] .milkdown hr::before {
+  content: "* * *";
+  letter-spacing: 0.6em;
+  color: color-mix(in srgb, var(--fg) 55%, transparent);
+  font-size: 0.9em;
+}
+
+#editor[data-preset="novel"] .milkdown blockquote {
+  border: none;
+  background: none;
+  margin: 1em 2.2em;
+  padding: 0;
+  font-size: 0.92em;
+}
+
+/* ---- Paper: LaTeX article manners ---- */
+#editor[data-preset="paper"] .milkdown {
+  --crepe-font-title: var(--font-charter);
+  --crepe-font-default: var(--font-charter);
+  --crepe-font-code: var(--font-mono);
+  font-size: 17px;
+  line-height: 1.6;
+  counter-reset: sec subsec;
+}
+
+#editor[data-preset="paper"] .milkdown p {
+  text-align: justify;
+  hyphens: auto;
+}
+
+#editor[data-preset="paper"] .milkdown h1 {
+  text-align: center;
+  font-weight: 400;
+  font-size: 1.65em;
+  margin-bottom: 0.8em;
+}
+
+#editor[data-preset="paper"] .milkdown h2 {
+  counter-increment: sec;
+  counter-reset: subsec;
+  font-weight: 600;
+  font-size: 1.25em;
+}
+
+#editor[data-preset="paper"] .milkdown h2::before {
+  content: counter(sec) "\2002";
+}
+
+#editor[data-preset="paper"] .milkdown h3 {
+  counter-increment: subsec;
+  font-weight: 600;
+  font-style: italic;
+  font-size: 1.05em;
+}
+
+#editor[data-preset="paper"] .milkdown h3::before {
+  content: counter(sec) "." counter(subsec) "\2002";
+  font-style: normal;
+}
+
+#editor[data-preset="paper"] .milkdown blockquote {
+  border: none;
+  background: none;
+  margin: 1em 2em;
+  padding: 0;
+  font-size: 0.92em;
+}
+
+#editor[data-preset="paper"] .milkdown hr {
+  border: none;
+  background: none;
+  height: auto;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 40%, transparent);
+  width: 34%;
+  margin: 2em auto;
+}
+
+/* ---- Magazine: feature spread ---- */
+#editor[data-preset="magazine"] .milkdown {
+  --crepe-font-title: var(--font-display);
+  --crepe-font-default: var(--font-sans);
+  --crepe-font-code: var(--font-mono);
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+#editor[data-preset="magazine"] .milkdown h1 {
+  font-weight: 800;
+  font-size: 2.6em;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+}
+
+#editor[data-preset="magazine"] .milkdown h1 + p {
+  font-size: 1.2em;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--fg) 62%, transparent);
+}
+
+#editor[data-preset="magazine"] .milkdown h2 {
+  font-weight: 700;
+  font-size: 1.4em;
+}
+
+#editor[data-preset="magazine"] .milkdown h3 {
+  font-weight: 700;
+  font-size: 1.15em;
+}
+
+#editor[data-preset="magazine"] .milkdown blockquote {
+  border: none;
+  background: none;
+  border-top: 2px solid var(--fg);
+  border-bottom: 2px solid var(--fg);
+  margin: 1.6em 8%;
+  padding: 0.7em 0.4em;
+  text-align: center;
+  font-style: italic;
+  font-size: 1.2em;
+  line-height: 1.35;
+}
+
+#editor[data-preset="magazine"] .milkdown hr {
+  border: none;
+  background: none;
+  height: auto;
+  border-top: 1px solid var(--border);
+  margin: 3em 0;
 }
 
 #empty-state {

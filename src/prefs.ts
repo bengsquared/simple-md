@@ -2,34 +2,36 @@
 // onto CSS custom properties. Nothing else knows how styling is stored.
 import { $ } from "./dom";
 
+type Preset = "standard" | "novel" | "paper" | "magazine";
+
 interface Prefs {
+  preset: Preset;
   width: "narrow" | "medium" | "wide" | "full";
-  font: "sans" | "serif" | "mono";
-  headingFont: "sans" | "serif";
-  titles: "left" | "center";
   zoom: string;
 }
 
 const DEFAULT_PREFS: Prefs = {
+  preset: "standard",
   width: "medium",
-  font: "sans",
-  headingFont: "serif",
-  titles: "left",
   zoom: "1",
 };
 
 const WIDTHS: Record<Prefs["width"], string> = {
-  narrow: "680px",
-  medium: "860px",
-  wide: "1080px",
+  narrow: "620px",
+  medium: "760px",
+  wide: "980px",
   full: "100%",
 };
 
 function loadPrefs(): Prefs {
   try {
+    const stored = JSON.parse(localStorage.getItem("prefs") ?? "{}");
     return {
-      ...DEFAULT_PREFS,
-      ...JSON.parse(localStorage.getItem("prefs") ?? "{}"),
+      preset: ["standard", "novel", "paper", "magazine"].includes(stored.preset)
+        ? stored.preset
+        : DEFAULT_PREFS.preset,
+      width: stored.width in WIDTHS ? stored.width : DEFAULT_PREFS.width,
+      zoom: typeof stored.zoom === "string" ? stored.zoom : DEFAULT_PREFS.zoom,
     };
   } catch {
     return { ...DEFAULT_PREFS };
@@ -38,21 +40,12 @@ function loadPrefs(): Prefs {
 
 const prefs = loadPrefs();
 
-function fontVar(f: string): string {
-  return f === "serif"
-    ? "var(--font-serif)"
-    : f === "mono"
-      ? "var(--font-mono)"
-      : "var(--font-sans)";
-}
-
 function applyPrefs() {
   const root = document.documentElement.style;
   root.setProperty("--content-width", WIDTHS[prefs.width] ?? WIDTHS.medium);
   root.setProperty("--editor-zoom", prefs.zoom);
-  root.setProperty("--editor-body-font", fontVar(prefs.font));
-  root.setProperty("--editor-heading-font", fontVar(prefs.headingFont));
-  $("editor").classList.toggle("centered-titles", prefs.titles === "center");
+  // The preset drives all typography via [data-preset] rules in styles.css.
+  $("editor").dataset.preset = prefs.preset;
   // Reflect active state in the panel.
   document.querySelectorAll<HTMLElement>(".ap-seg").forEach((seg) => {
     const key = seg.dataset.pref as keyof Prefs;
